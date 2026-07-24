@@ -462,6 +462,17 @@
       background:none; border:0; text-decoration:underline; cursor:pointer;
       font-family:var(--font-body); font-size:12px; color:var(--muted);
     }
+    .account-avatar{
+      width:26px; height:26px; border-radius:50%; object-fit:cover;
+      border:1.5px solid var(--blush-200); flex-shrink:0;
+    }
+    .auth-link-btn{
+      background:none; border:0; color:var(--fuchsia-dark); text-decoration:underline;
+      cursor:pointer; font-family:var(--font-body); font-size:12.5px; text-align:left;
+      padding:0; margin-top:-4px;
+    }
+    .auth-success{ color:#1b7a3d; font-size:13px; display:none; }
+    .auth-success.show{ display:block; }
 
     /* ---------- footer brand (logo only) ---------- */
     .footer-brand{ display:flex; align-items:center; }
@@ -476,7 +487,26 @@
     .social-ico{ width:17px; height:17px; flex-shrink:0; }
     .btn-ghost{ display:inline-flex; align-items:center; gap:8px; }
     .footer-grid a.btn-ghost{ display:inline-flex; align-items:center; gap:8px; margin-bottom:0; }
+
+    /* ---------- Google sign-in ---------- */
+    .btn-google{
+      width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+      padding:10px 14px; border-radius:10px; border:1.5px solid var(--blush-200);
+      background:var(--white); cursor:pointer; font-family:var(--font-body); font-weight:600;
+      font-size:13.5px; color:var(--ink); margin-bottom:14px;
+    }
+    .btn-google:hover{ background:var(--cream); }
+    .auth-divider{
+      display:flex; align-items:center; text-align:center; color:var(--muted);
+      font-size:12px; margin-bottom:14px; gap:10px;
+    }
+    .auth-divider::before, .auth-divider::after{
+      content:""; flex:1; height:1px; background:var(--blush-200);
+    }
   </style>
+
+  <!-- Firebase (Authentication) -->
+  <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
 
@@ -521,6 +551,18 @@
       <button class="auth-close" id="authClose" aria-label="Cerrar">✕</button>
       <h3>Mi cuenta</h3>
       <p class="auth-subtitle">Iniciá sesión o creá tu cuenta para finalizar tu compra.</p>
+
+      <button type="button" class="btn-google" id="googleSignInBtn">
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.6 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.5 3.5 24 3.5 12.9 3.5 4 12.4 4 23.5S12.9 43.5 24 43.5c11 0 20-8 20-20 0-1.3-.1-2.3-.4-3z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13.5 24 13.5c3.1 0 5.8 1.1 8 3l6-6C34.5 6.5 29.5 4.5 24 4.5c-7.8 0-14.5 4.4-17.7 10.2z"/>
+          <path fill="#4CAF50" d="M24 43.5c5.3 0 10.1-1.8 13.8-5l-6.4-5.4C29.4 34.9 26.9 35.8 24 35.8c-5.4 0-9.9-3.4-11.5-8.2l-6.6 5.1C9.5 39.1 16.2 43.5 24 43.5z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-1.9 3.7-3.5 5l.1-.1 6.4 5.4C37.8 38.9 42 32.2 42 23.5c0-1.3-.1-2.3-.4-3z"/>
+        </svg>
+        Continuar con Google
+      </button>
+      <div class="auth-divider"><span>o con tu email</span></div>
+
       <div class="auth-tabs">
         <div class="auth-tab active" data-authtab="login">Iniciar sesión</div>
         <div class="auth-tab" data-authtab="register">Crear cuenta</div>
@@ -537,6 +579,18 @@
         </div>
         <p class="auth-error" id="loginError">Email o contraseña incorrectos.</p>
         <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+        <button type="button" class="auth-link-btn" id="forgotPasswordBtn">¿Olvidaste tu contraseña?</button>
+      </form>
+
+      <form class="auth-panel" id="resetPanel">
+        <div class="auth-field">
+          <label for="resetEmail">Email</label>
+          <input type="email" id="resetEmail" required autocomplete="email">
+        </div>
+        <p class="auth-error" id="resetError">No pudimos enviar el email. Probá de nuevo.</p>
+        <p class="auth-success" id="resetSuccess">Te enviamos un email para restablecer tu contraseña.</p>
+        <button type="submit" class="btn btn-primary btn-block">Enviar email de recuperación</button>
+        <button type="button" class="auth-link-btn" id="backToLoginBtn">‹ Volver a iniciar sesión</button>
       </form>
 
       <form class="auth-panel" id="registerPanel">
@@ -866,43 +920,77 @@
       $("#qvOverlay").setAttribute("aria-hidden","true");
     }
 
-    /* ---------- login / cuenta ---------- */
-    // Autenticación simple del lado del cliente (sin servidor propio):
-    // los usuarios y la sesión se guardan en localStorage. Sirve para
-    // exigir que la clienta se identifique antes de finalizar la compra,
-    // pero no es un sistema de seguridad real (cualquiera con acceso al
-    // navegador podría editar estos datos). Si en el futuro sumás un
-    // backend, esta parte es la que hay que reemplazar.
-    function loadUsers(){
-      const raw = localStorage.getItem("bbaUsers");
-      return raw ? JSON.parse(raw) : {};
-    }
-    function saveUsers(users){ localStorage.setItem("bbaUsers", JSON.stringify(users)); }
-    function getSession(){
-      const raw = localStorage.getItem("bbaSession");
-      return raw ? JSON.parse(raw) : null;
-    }
-    function setSession(user){ localStorage.setItem("bbaSession", JSON.stringify(user)); }
-    function clearSession(){ localStorage.removeItem("bbaSession"); }
+    /* ---------- login / cuenta (Firebase Authentication) ---------- */
+    // "auth" y las funciones fb* se completan en initFirebaseAuth(), una vez
+    // que firebase-config.js (cargado como módulo) terminó de inicializar
+    // Firebase. Se declaran acá arriba para que estén disponibles en todo
+    // el script (por ejemplo, en el botón de "Finalizar compra" del carrito).
+    let auth, googleProvider;
+    let fbSignInWithPopup, fbSignInWithEmailAndPassword, fbCreateUserWithEmailAndPassword,
+        fbSignOut, fbOnAuthStateChanged, fbUpdateProfile, fbSendPasswordResetEmail;
 
     let pendingCheckout = false;
 
-    function renderAccountArea(){
-      const session = getSession();
+    function authErrorMessage(err){
+      const map = {
+        "auth/invalid-email": "El email no es válido.",
+        "auth/user-disabled": "Esta cuenta está deshabilitada.",
+        "auth/user-not-found": "Email o contraseña incorrectos.",
+        "auth/wrong-password": "Email o contraseña incorrectos.",
+        "auth/invalid-credential": "Email o contraseña incorrectos.",
+        "auth/email-already-in-use": "Ese email ya está registrado.",
+        "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
+        "auth/popup-closed-by-user": "Se cerró la ventana de Google antes de terminar.",
+        "auth/network-request-failed": "Hubo un problema de conexión. Probá de nuevo."
+      };
+      return map[err.code] || "Ocurrió un error. Probá de nuevo.";
+    }
+
+    // Guarda/actualiza (o borra) el objeto bbaSession en localStorage a
+    // partir del usuario de Firebase. metodos-pago.html sigue leyendo este
+    // mismo objeto para saber si hay sesión iniciada, sin depender de
+    // Firebase directamente.
+    function syncBbaSession(user){
+      if(user){
+        localStorage.setItem("bbaSession", JSON.stringify({
+          uid: user.uid,
+          email: user.email || "",
+          displayName: user.displayName || "",
+          photoURL: user.photoURL || ""
+        }));
+      }else{
+        localStorage.removeItem("bbaSession");
+      }
+    }
+
+    function renderAccountArea(user){
       const area = $("#accountArea");
-      if(session){
-        area.innerHTML = `<span class="account-name">Hola, ${session.name.split(" ")[0]} <button id="logoutBtn">Salir</button></span>`;
-        $("#logoutBtn").onclick = () => {
-          clearSession();
-          renderAccountArea();
-        };
+      if(user){
+        const first = (user.displayName || user.email || "").split(" ")[0];
+        const photo = user.photoURL;
+        area.innerHTML = `
+          <span class="account-name">
+            ${photo ? `<img class="account-avatar" src="${photo}" alt="">` : ""}
+            Hola, ${first}
+            <button id="logoutBtn">Salir</button>
+          </span>`;
+        $("#logoutBtn").onclick = () => fbSignOut(auth);
       }else{
         area.innerHTML = `<button class="icon-btn" id="loginBtn" aria-label="Iniciar sesión">👤 Ingresar</button>`;
         $("#loginBtn").onclick = () => openAuth();
       }
     }
 
+    function showAuthPanel(name){
+      $$(".auth-tab").forEach(t => t.classList.remove("active"));
+      $$(".auth-panel").forEach(p => p.classList.remove("active"));
+      const tab = $(`.auth-tab[data-authtab="${name}"]`);
+      if(tab) tab.classList.add("active");
+      $("#" + name + "Panel").classList.add("active");
+    }
+
     function openAuth(){
+      showAuthPanel("login");
       $("#authOverlay").classList.add("open");
       $("#authOverlay").setAttribute("aria-hidden","false");
     }
@@ -916,46 +1004,18 @@
 
     $$(".auth-tab").forEach(tab => {
       tab.addEventListener("click", () => {
-        $$(".auth-tab").forEach(t => t.classList.remove("active"));
-        $$(".auth-panel").forEach(p => p.classList.remove("active"));
-        tab.classList.add("active");
-        $("#" + tab.dataset.authtab + "Panel").classList.add("active");
+        showAuthPanel(tab.dataset.authtab);
       });
     });
 
-    $("#loginPanel").addEventListener("submit", e => {
-      e.preventDefault();
-      const email = $("#loginEmail").value.trim().toLowerCase();
-      const password = $("#loginPassword").value;
-      const users = loadUsers();
-      const user = users[email];
-      if(!user || user.password !== password){
-        $("#loginError").classList.add("show");
-        return;
-      }
-      $("#loginError").classList.remove("show");
-      setSession({ name: user.name, email });
-      renderAccountArea();
-      closeAuthAfterSuccess();
-    });
-
-    $("#registerPanel").addEventListener("submit", e => {
-      e.preventDefault();
-      const name = $("#regName").value.trim();
-      const email = $("#regEmail").value.trim().toLowerCase();
-      const password = $("#regPassword").value;
-      const users = loadUsers();
-      if(users[email]){
-        $("#registerError").classList.add("show");
-        return;
-      }
-      $("#registerError").classList.remove("show");
-      users[email] = { name, password };
-      saveUsers(users);
-      setSession({ name, email });
-      renderAccountArea();
-      closeAuthAfterSuccess();
-    });
+    $("#forgotPasswordBtn").onclick = () => {
+      $$(".auth-tab").forEach(t => t.classList.remove("active"));
+      $$(".auth-panel").forEach(p => p.classList.remove("active"));
+      $("#resetPanel").classList.add("active");
+    };
+    $("#backToLoginBtn").onclick = () => {
+      showAuthPanel("login");
+    };
 
     function closeAuthAfterSuccess(){
       $("#authOverlay").classList.remove("open");
@@ -971,6 +1031,91 @@
     function goToCheckout(){
       saveCart();
       window.location.href = "metodos-pago.html";
+    }
+
+    // Conecta todos los listeners que dependen de Firebase (login, registro,
+    // Google, recuperar contraseña, cierre de sesión y persistencia de
+    // sesión). Se llama una sola vez que window.firebaseAuth está listo.
+    function initFirebaseAuth(){
+      auth = window.firebaseAuth.auth;
+      googleProvider = window.firebaseAuth.provider;
+      fbSignInWithPopup = window.firebaseAuth.signInWithPopup;
+      fbSignInWithEmailAndPassword = window.firebaseAuth.signInWithEmailAndPassword;
+      fbCreateUserWithEmailAndPassword = window.firebaseAuth.createUserWithEmailAndPassword;
+      fbSignOut = window.firebaseAuth.signOut;
+      fbOnAuthStateChanged = window.firebaseAuth.onAuthStateChanged;
+      fbUpdateProfile = window.firebaseAuth.updateProfile;
+      fbSendPasswordResetEmail = window.firebaseAuth.sendPasswordResetEmail;
+
+      $("#loginPanel").addEventListener("submit", e => {
+        e.preventDefault();
+        const email = $("#loginEmail").value.trim().toLowerCase();
+        const password = $("#loginPassword").value;
+        $("#loginError").classList.remove("show");
+        fbSignInWithEmailAndPassword(auth, email, password)
+          .then(() => { $("#loginPanel").reset(); })
+          .catch(err => {
+            $("#loginError").textContent = authErrorMessage(err);
+            $("#loginError").classList.add("show");
+          });
+      });
+
+      $("#registerPanel").addEventListener("submit", e => {
+        e.preventDefault();
+        const name = $("#regName").value.trim();
+        const email = $("#regEmail").value.trim().toLowerCase();
+        const password = $("#regPassword").value;
+        $("#registerError").classList.remove("show");
+        fbCreateUserWithEmailAndPassword(auth, email, password)
+          .then(cred => fbUpdateProfile(cred.user, { displayName: name }))
+          .then(() => { $("#registerPanel").reset(); })
+          .catch(err => {
+            $("#registerError").textContent = authErrorMessage(err);
+            $("#registerError").classList.add("show");
+          });
+      });
+
+      $("#resetPanel").addEventListener("submit", e => {
+        e.preventDefault();
+        const email = $("#resetEmail").value.trim().toLowerCase();
+        $("#resetError").classList.remove("show");
+        $("#resetSuccess").classList.remove("show");
+        fbSendPasswordResetEmail(auth, email)
+          .then(() => {
+            $("#resetSuccess").classList.add("show");
+            $("#resetPanel").reset();
+          })
+          .catch(err => {
+            $("#resetError").textContent = authErrorMessage(err);
+            $("#resetError").classList.add("show");
+          });
+      });
+
+      $("#googleSignInBtn").onclick = () => {
+        $("#loginError").classList.remove("show");
+        fbSignInWithPopup(auth, googleProvider).catch(err => {
+          $("#loginError").textContent = authErrorMessage(err);
+          $("#loginError").classList.add("show");
+        });
+      };
+
+      // Se dispara al cargar la página y cada vez que cambia el estado de
+      // sesión (login, registro, Google o logout). Acá se actualiza el
+      // ícono de cuenta, se sincroniza bbaSession y, si había una compra
+      // pendiente, se cierra el modal y se sigue al checkout.
+      fbOnAuthStateChanged(auth, user => {
+        syncBbaSession(user);
+        renderAccountArea(user);
+        if(user){
+          closeAuthAfterSuccess();
+        }
+      });
+    }
+
+    if(window.firebaseAuth){
+      initFirebaseAuth();
+    }else{
+      window.addEventListener("firebaseReady", initFirebaseAuth, { once:true });
     }
 
     /* ---------- cart ---------- */
@@ -1058,7 +1203,7 @@
 
     $("#checkoutBtn").onclick = () => {
       if(cart.length === 0){ alert("Tu carrito está vacío."); return; }
-      if(!getSession()){
+      if(!auth || !auth.currentUser){
         pendingCheckout = true;
         closeCart();
         openAuth();
@@ -1073,7 +1218,6 @@
       renderProducts();
       loadCart();
       updateCartUI();
-      renderAccountArea();
     });
   </script>
 
