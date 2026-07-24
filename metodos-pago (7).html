@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Métodos de pago — Beauty by Anto</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --cream:#fff8fb;
+      --blush-100:#ffd6e9;
+      --blush-200:#ffbbdc;
+      --pink-300:#ff94bd;
+      --fuchsia:#ee0f82;
+      --fuchsia-dark:#9c0b5f;
+      --gold:#c9a24b;
+      --gold-light:#e8cd8a;
+      --ink:#331420;
+      --muted:#8a6673;
+      --white:#ffffff;
+      --radius:16px;
+      --shadow:0 14px 40px rgba(238,15,130,0.12);
+      --shadow-sm:0 6px 18px rgba(51,20,32,0.08);
+      --font-display:"Playfair Display", serif;
+      --font-body:"Jost", system-ui, sans-serif;
+    }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    body{
+      font-family:var(--font-body);
+      color:var(--ink);
+      background:var(--cream);
+      line-height:1.5;
+    }
+    .container{ width:92%; max-width:960px; margin:0 auto; }
+    a{ color:inherit; }
+
+    header.site-header{
+      background:#f6dfe9;
+      border-bottom:1px solid rgba(238,15,130,0.08);
+      padding:16px 0;
+    }
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+    }
+    .brand{
+      font-family:var(--font-display); font-weight:700; font-size:20px;
+      text-decoration:none; color:var(--ink);
+    }
+    .back-link{
+      text-decoration:none; color:var(--fuchsia-dark); font-weight:600; font-size:14px;
+      display:inline-flex; align-items:center; gap:6px;
+    }
+
+    main{ padding:36px 0 60px; }
+
+    h1{
+      font-family:var(--font-display); font-size:clamp(26px,3.4vw,34px);
+      margin-bottom:6px; color:var(--ink);
+    }
+    .subtitle{ color:var(--muted); margin-bottom:28px; }
+
+    .card{
+      background:var(--white); border-radius:var(--radius);
+      box-shadow:var(--shadow-sm); padding:22px; margin-bottom:22px;
+      border:1px solid var(--blush-100);
+    }
+    .card h2{
+      font-family:var(--font-display); font-size:19px; margin-bottom:12px; color:var(--fuchsia-dark);
+    }
+
+    /* ---- resumen del pedido ---- */
+    #summaryItems{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .summary-row{
+      display:flex; justify-content:space-between; font-size:14.5px;
+      padding:6px 0; border-bottom:1px solid var(--blush-100);
+    }
+    .summary-row span:first-child{ color:var(--ink); }
+    .summary-row span:last-child{ color:var(--muted); }
+    .summary-total{
+      display:flex; justify-content:space-between; font-weight:700; font-size:18px;
+      margin-top:10px; color:var(--fuchsia-dark);
+    }
+    .empty-cart{ color:var(--muted); }
+    .shipping-note{ color:var(--muted); font-size:12.5px; margin-top:10px; }
+
+    .btn{
+      font-family:var(--font-body); font-size:14.5px; font-weight:600;
+      border-radius:999px; padding:11px 20px; cursor:pointer;
+      border:0; text-decoration:none; display:inline-flex; align-items:center;
+      justify-content:center; gap:8px; transition:transform .15s ease;
+    }
+    .btn-primary{ background:var(--fuchsia); color:var(--white); }
+    .btn-primary:hover{ transform:translateY(-2px); }
+    .btn-mp{ background:#009ee3; color:var(--white); width:100%; padding:12px 14px; font-size:16px; }
+    .btn-mp:hover{ transform:translateY(-2px); }
+    .btn-mp .mp-ico{ height:24px; width:24px; display:block; flex-shrink:0; }
+    .btn-ghost{
+      border:1px solid rgba(51,20,32,0.15); background:var(--white);
+      padding:9px 14px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600;
+      color:var(--fuchsia-dark);
+    }
+    .btn-ghost:hover{ background:var(--blush-100); }
+
+    /* ---- tabs métodos de pago ---- */
+    .pm-tabs{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+    .pm-tab{
+      flex:1; min-width:160px; padding:14px; border-radius:12px; cursor:pointer;
+      border:2px solid var(--blush-200); background:var(--white); text-align:center;
+      font-weight:600; font-size:14.5px; transition:all .15s ease;
+    }
+    .pm-tab.active{ border-color:var(--fuchsia); background:var(--blush-100); color:var(--fuchsia-dark); }
+    .pm-panel{ display:none; }
+    .pm-panel.active{ display:block; }
+
+    .transfer-field{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      background:var(--cream); border:1px solid var(--blush-100); border-radius:10px;
+      padding:12px 14px; margin-bottom:10px;
+    }
+    .transfer-field .label{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .transfer-field .value{ font-weight:700; font-size:15px; word-break:break-all; }
+    .copied-msg{ font-size:12px; color:var(--fuchsia-dark); font-weight:600; }
+
+    .mp-note{ color:var(--muted); font-size:13px; margin-top:12px; line-height:1.5; }
+
+    footer.contact-note{
+      text-align:center; color:var(--muted); font-size:13px; padding:20px 0 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container topbar">
+      <a class="brand" href="inicio.html">Beauty by Anto</a>
+      <a class="back-link" href="inicio.html">‹ Volver a la tienda</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <h1>Métodos de pago</h1>
+      <p class="subtitle">Elegí cómo preferís pagar tu pedido.</p>
+
+      <!-- Resumen del pedido -->
+      <div class="card">
+        <h2>Tu pedido</h2>
+        <div id="summaryItems"></div>
+        <div class="summary-total">
+          <span>Total</span>
+          <span id="summaryTotal">$0.00</span>
+        </div>
+        <p class="shipping-note">*Los envíos salen desde nuestra sucursal de Correo Argentino en Villa del Parque. El costo se coordina y confirma por WhatsApp según tu ubicación.</p>
+      </div>
+
+      <!-- Métodos de pago -->
+      <div class="card">
+        <h2>¿Cómo querés pagar?</h2>
+        <div class="pm-tabs">
+          <div class="pm-tab active" data-tab="transferencia">💳 Transferencia bancaria</div>
+          <div class="pm-tab" data-tab="mercadopago">🔵 Mercado Pago</div>
+        </div>
+
+        <div class="pm-panel active" id="panel-transferencia">
+          <div class="transfer-field">
+            <div>
+              <div class="label">Alias</div>
+              <div class="value">anto.branda</div>
+            </div>
+            <button class="btn-ghost" data-copy="anto.branda">Copiar</button>
+          </div>
+          <div class="transfer-field">
+            <div>
+              <div class="label">CVU</div>
+              <div class="value">0000003100004661638659</div>
+            </div>
+            <button class="btn-ghost" data-copy="0000003100004661638659">Copiar</button>
+          </div>
+          <div class="transfer-field">
+            <div>
+              <div class="label">Titular</div>
+              <div class="value">ANTONELLA BRANDA GENTA</div>
+            </div>
+            <button class="btn-ghost" data-copy="ANTONELLA BRANDA GENTA">Copiar</button>
+          </div>
+          <p class="mp-note">Una vez hecha la transferencia, enviá el comprobante por WhatsApp para confirmar tu pedido.</p>
+          <a class="btn btn-primary" style="margin-top:10px;" href="https://wa.me/541136370072" target="_blank" rel="noopener">Enviar comprobante por WhatsApp</a>
+        </div>
+
+        <div class="pm-panel" id="panel-mercadopago">
+          <p class="mp-note" style="margin-top:0;">Pagá directamente desde tu cuenta de Mercado Pago.</p>
+          <a class="btn btn-mp" id="mpPayBtn" href="https://link.mercadopago.com.ar/beautybyanto" target="_blank" rel="noopener">
+            <svg class="mp-ico" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="24" cy="24" r="24" fill="#ffffff"/>
+              <path d="M13 27c2.5 4 6.5 6.5 11 6.5S32.5 31 35 27" stroke="#009ee3" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+              <circle cx="16.5" cy="20" r="2.6" fill="#009ee3"/>
+              <circle cx="31.5" cy="20" r="2.6" fill="#009ee3"/>
+            </svg>
+            Pagar con Mercado Pago
+          </a>
+          <p class="mp-note">Si tenés algún inconveniente para pagar, escribinos por WhatsApp y te ayudamos a coordinar el pago.</p>
+        </div>
+      </div>
+
+      <footer class="contact-note">¿Dudas? Escribinos por <a href="https://wa.me/541136370072" target="_blank" rel="noopener" style="color:var(--fuchsia-dark); font-weight:600;">WhatsApp</a>.</footer>
+    </div>
+  </main>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const $$ = s => [...document.querySelectorAll(s)];
+
+    /* ---------- exigir sesión iniciada ---------- */
+    // Si alguien llega a esta página sin haber iniciado sesión desde el
+    // inicio (por ejemplo, escribiendo la URL a mano), lo mandamos de
+    // vuelta a la tienda para que primero se identifique.
+    (function requireSession(){
+      const raw = localStorage.getItem("bbaSession");
+      if(!raw){
+        window.location.href = "inicio.html";
+      }
+    })();
+
+    /* ---------- leer carrito guardado ---------- */
+    function loadCart(){
+      const raw = localStorage.getItem("cart");
+      return raw ? JSON.parse(raw) : [];
+    }
+    const cart = loadCart();
+
+    function renderSummary(){
+      const list = $("#summaryItems");
+      if(cart.length === 0){
+        list.innerHTML = `<p class="empty-cart">No hay productos cargados. Volvé a la tienda para armar tu pedido.</p>`;
+        $("#summaryTotal").textContent = "$0.00";
+        return;
+      }
+      let total = 0;
+      list.innerHTML = cart.map(item => {
+        const subtotal = item.price * item.qty;
+        total += subtotal;
+        return `<div class="summary-row"><span>${item.title} × ${item.qty}</span><span>$${subtotal.toFixed(2)}</span></div>`;
+      }).join("");
+      $("#summaryTotal").textContent = `$${total.toFixed(2)}`;
+    }
+    renderSummary();
+
+    /* ---------- tabs de métodos de pago ---------- */
+    $$(".pm-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        $$(".pm-tab").forEach(t => t.classList.remove("active"));
+        $$(".pm-panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        $("#panel-" + tab.dataset.tab).classList.add("active");
+      });
+    });
+
+    /* ---------- copiar datos de transferencia ---------- */
+    $$("[data-copy]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const text = btn.dataset.copy;
+        try{
+          await navigator.clipboard.writeText(text);
+          const original = btn.textContent;
+          btn.textContent = "¡Copiado!";
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        }catch(e){
+          alert("No se pudo copiar. Copiá manualmente: " + text);
+        }
+      });
+    });
+
+    /* ---------- botón de Mercado Pago ----------
+       Este botón usa el "link de pago" fijo de Beauty by Anto
+       (link.mercadopago.com.ar/beautybyanto). Al tocarlo desde el celular,
+       si la clienta tiene la app de Mercado Pago instalada, el sistema
+       operativo suele abrir la app automáticamente; si no la tiene, se
+       abre en el navegador para que inicie sesión y pague igual.
+
+       OJO: como es un link de pago fijo (no un "Checkout Pro" generado
+       por pedido), Mercado Pago NO conoce el monto exacto de este carrito
+       en particular. Puede pedirle a la clienta que ingrese el monto a
+       pagar, o quedar configurado con un monto fijo desde tu cuenta de
+       Mercado Pago. Para cobrar automáticamente el monto exacto de cada
+       pedido hace falta integrar Checkout Pro con un servidor propio. */
+    $("#mpPayBtn").href = "https://link.mercadopago.com.ar/beautybyanto";
+  </script>
+</body>
+</html>
