@@ -7,7 +7,7 @@
   <meta name="description" content="Maquillaje, servicios de belleza y productos seleccionados por Beauty by Anto.">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Pinyon+Script&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -225,7 +225,14 @@
       font-size:clamp(42px, 5.6vw, 66px); line-height:1.1;
       margin:14px 0 16px; color:#e46391;
     }
-    .hero h2 em{ color:var(--fuchsia); font-style:normal; }
+    .hero h2 .fancy-a{
+      font-family:"Pinyon Script", cursive; font-weight:400;
+      font-size:1.35em; color:inherit;
+    }
+    .hero-heart{
+      height:0.62em; width:auto; display:inline-block;
+      vertical-align:-0.06em; margin-left:2px;
+    }
 
     .hero p.lead{
       color:var(--muted); font-size:17px; max-width:460px; margin-bottom:26px;
@@ -740,7 +747,7 @@
     <section class="hero">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <h2>Bienvenida a Beauty By Anto <em>🩷</em></h2>
+          <h2>Bienvenida a Beauty By <span class="fancy-a">A</span>nto <img class="hero-heart" src="heart-icon.png" alt=""></h2>
           <p class="lead">Un espacio pensado solo para vos, en donde vas a encontrar todo lo que necesitás para potenciar tu belleza y construir la mejor versión de vos misma.</p>
 
         </div>
