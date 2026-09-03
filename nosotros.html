@@ -56,22 +56,10 @@
       *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; }
     }
 
-    /* ---------- franja decorativa superior (cinta) ---------- */
-    .top-strip{
-      width:100%; height:26px;
-      background-image:url('top-strip-pattern-v2.jpg');
-      background-repeat:repeat;
-      background-size:90px auto;
-      background-position:center top;
-    }
-    @media (max-width:600px){
-      .top-strip{ height:20px; background-size:64px auto; }
-    }
-
     /* ---------- header ---------- */
     header.site-header{
       position:sticky; top:0; z-index:100;
-      background:#feebe5;
+      background:#f6dfe9;
       border-bottom:1px solid rgba(238,15,130,0.08);
     }
 
@@ -619,7 +607,6 @@
 </head>
 <body>
 
-  <div class="top-strip" aria-hidden="true"></div>
   <header class="site-header">
     <div class="container topbar">
       <a class="brand" href="#top">
