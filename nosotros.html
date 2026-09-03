@@ -72,11 +72,9 @@
       text-decoration:none; color:var(--ink);
     }
 
-    .brand .logo-desktop{
-      height:56px; width:auto; display:block; flex-shrink:0;
+    .brand .logo-header{
+      height:64px; width:auto; display:block; flex-shrink:0;
     }
-
-    .brand .logo-mobile{ display:none; }
 
     nav.main-nav{ display:flex; gap:6px; }
 
@@ -362,10 +360,7 @@
         grid-column:2; grid-row:1;
         flex-direction:column; align-items:center; text-align:center; gap:2px;
       }
-      .brand .logo-desktop{ display:none; }
-      .brand .logo-mobile{
-        display:block; height:84px; width:auto; margin:0 auto;
-      }
+      .brand .logo-header{ height:100px; width:auto; margin:0 auto; }
 
       nav.main-nav{
         display:none; position:absolute; top:100%; left:0; right:0;
@@ -609,8 +604,7 @@
   <header class="site-header">
     <div class="container topbar">
       <a class="brand" href="#top">
-        <img class="logo-desktop" src="imagotipo-header.png" alt="Beauty By Anto — La belleza de encontrarte">
-        <img class="logo-mobile" src="imagotipo-header-mobile.png" alt="Beauty By Anto — La belleza de encontrarte">
+        <img class="logo-header" src="imagotipo-header.png" alt="Beauty By Anto — La belleza de encontrarte">
       </a>
 
       <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">
