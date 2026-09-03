@@ -39,15 +39,26 @@
     .container{ width:92%; max-width:960px; margin:0 auto; }
     a{ color:inherit; }
 
-    .top-strip{
-      width:100%; height:30px;
-      background-image:url('top-strip-pattern.jpg');
-      background-repeat:repeat;
-      background-size:190px auto;
-      background-position:center top;
+    /* ---------- franja decorativa superior (lazo) ---------- */
+    .ribbon-topper{
+      --ribbon-h:90px;
+      --bow-w:calc(var(--ribbon-h) * 216 / 210);
+      --tile-w:calc(var(--ribbon-h) * 200 / 210);
+      --tile-h:calc(var(--ribbon-h) * 40 / 210);
+      --tile-y:calc(var(--ribbon-h) * 70 / 210);
+      position:relative; width:100%; height:var(--ribbon-h);
+      overflow:hidden;
+      background-image:url('ribbon-tile.png');
+      background-repeat:repeat-x;
+      background-position:var(--bow-w) var(--tile-y);
+      background-size:var(--tile-w) var(--tile-h);
+    }
+    .ribbon-bow{
+      position:absolute; left:0; top:0;
+      height:100%; width:auto; display:block;
     }
     @media (max-width:600px){
-      .top-strip{ height:22px; background-size:130px auto; }
+      .ribbon-topper{ --ribbon-h:60px; }
     }
 
     header.site-header{
@@ -161,7 +172,7 @@
 </head>
 <body>
 
-  <div class="top-strip" aria-hidden="true"></div>
+  <div class="ribbon-topper" aria-hidden="true"><img src="ribbon-bow.png" class="ribbon-bow" alt=""></div>
   <header class="site-header">
     <div class="container topbar">
       <a class="brand" href="inicio.html">
