@@ -56,26 +56,17 @@
       *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; }
     }
 
-    /* ---------- franja decorativa superior (lazo) ---------- */
-    .ribbon-topper{
-      --ribbon-h:90px;
-      --bow-w:calc(var(--ribbon-h) * 216 / 210);
-      --tile-w:calc(var(--ribbon-h) * 200 / 210);
-      --tile-h:calc(var(--ribbon-h) * 40 / 210);
-      --tile-y:calc(var(--ribbon-h) * 70 / 210);
-      position:relative; width:100%; height:var(--ribbon-h);
-      overflow:hidden;
-      background-image:url('ribbon-tile.png');
-      background-repeat:repeat-x;
-      background-position:var(--bow-w) var(--tile-y);
-      background-size:var(--tile-w) var(--tile-h);
-    }
-    .ribbon-bow{
-      position:absolute; left:0; top:0;
-      height:100%; width:auto; display:block;
+    /* ---------- franja decorativa superior (cinta) ---------- */
+    .top-strip{
+      width:100%; height:48px;
+      background-color:#f6dfe9;
+      background-image:url('ribbon-line-tile.png'), url('ribbon-bow.png');
+      background-repeat:repeat-x, no-repeat;
+      background-position:left center, left center;
+      background-size:auto 100%, auto 100%;
     }
     @media (max-width:600px){
-      .ribbon-topper{ --ribbon-h:60px; }
+      .top-strip{ height:34px; }
     }
 
     /* ---------- header ---------- */
@@ -675,7 +666,7 @@
 </head>
 <body>
 
-  <div class="ribbon-topper" aria-hidden="true"><img src="ribbon-bow.png" class="ribbon-bow" alt=""></div>
+  <div class="top-strip" aria-hidden="true"></div>
   <header class="site-header">
     <div class="container topbar">
       <a class="brand" href="#top">
