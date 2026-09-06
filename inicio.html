@@ -452,55 +452,26 @@
     .nav-dropdown-menu a:hover{ background:var(--blush-100); color:var(--fuchsia-dark); }
     .nav-dropdown-menu a.all-products{ font-weight:700; color:var(--fuchsia-dark); border-bottom:1px solid var(--blush-100); margin-bottom:4px; padding-bottom:10px; }
 
-    /* ---------- tooltip "Descubrí nuestro catálogo" sobre Productos ---------- */
+    /* ---------- cursor animado sobre "Productos" (siempre visible) ---------- */
     .nav-dropdown-btn{ position:relative; }
-    .nav-dropdown .products-hint{
-      position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%) translateY(-4px);
-      background:var(--pink-400); color:#fff; border:1px solid var(--gold);
-      padding:6px 14px; border-radius:20px; font-size:12.5px; white-space:nowrap;
-      font-family:var(--font-display); text-decoration:none; cursor:pointer;
-      opacity:0; pointer-events:none; z-index:130;
-      transition:opacity .2s ease, transform .2s ease;
+    .nav-dropdown .products-cursor{
+      position:absolute; top:calc(100% - 4px); left:calc(100% - 4px);
+      pointer-events:none; z-index:130;
+      transition:opacity .2s ease;
     }
-    .nav-dropdown:hover .products-hint,
-    .nav-dropdown-btn:focus + .products-hint{
-      opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0);
+    .nav-dropdown .products-cursor svg{
+      animation:hintClick 2.2s ease-in-out infinite;
     }
-    .nav-dropdown.menu-open .products-hint{
-      opacity:0 !important; pointer-events:none !important;
-    }
-    .nav-dropdown .products-hint::before{
-      content:""; position:absolute; inset:-4px; border-radius:24px;
-      border:1.5px solid var(--gold); opacity:0;
-    }
-    .nav-dropdown:hover .products-hint::before{
-      animation:hintRing 1.6s ease-out infinite;
-    }
-    .nav-dropdown .products-hint svg{
-      position:absolute; top:100%; left:12px;
-      animation:hintClick 2s ease-in-out infinite;
-    }
-    .nav-dropdown .products-hint.pressed{
-      animation:hintPress .35s ease;
+    .nav-dropdown.menu-open .products-cursor{
+      opacity:0;
     }
     @keyframes hintClick{
       0%,80%,100%{ transform:translate(0,0) rotate(0deg); }
       88%{ transform:translate(-3px,3px) rotate(-6deg); }
       94%{ transform:translate(0,0) rotate(0deg); }
     }
-    @keyframes hintRing{
-      0%{ transform:scale(0.85); opacity:.6; }
-      100%{ transform:scale(1.15); opacity:0; }
-    }
-    @keyframes hintPress{
-      0%{ transform:translateX(-50%) translateY(0) scale(1); }
-      40%{ transform:translateX(-50%) translateY(0) scale(0.92); }
-      100%{ transform:translateX(-50%) translateY(0) scale(1); }
-    }
     @media (prefers-reduced-motion:reduce){
-      .nav-dropdown .products-hint svg,
-      .nav-dropdown .products-hint::before,
-      .nav-dropdown .products-hint.pressed{ animation:none; }
+      .nav-dropdown .products-cursor svg{ animation:none; }
     }
 
     /* ---------- new-arrivals carousel controls ---------- */
@@ -677,12 +648,11 @@
         <a href="#" id="serviciosLink">Servicios</a>
         <div class="nav-dropdown">
           <button class="nav-dropdown-btn" id="productsMenuBtn" aria-haspopup="true" aria-expanded="false">Productos ▾</button>
-          <a class="products-hint" href="productos.html?cat=todos" data-cat="todos">
-            Descubrí nuestro catálogo
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <span class="products-cursor" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24">
               <polygon points="6,3 6,19 10,15 13,21 15,20 12,14 17,14" style="fill:var(--blush-100); stroke:var(--pink-400); stroke-width:1.6; stroke-linejoin:round;"/>
             </svg>
-          </a>
+          </span>
           <div class="nav-dropdown-menu" id="productsMenu">
             <a class="all-products" href="productos.html?cat=todos" data-cat="todos">Todos los productos</a>
             <a href="productos.html?cat=combos" data-cat="combos">Combos</a>
@@ -1048,7 +1018,6 @@
     /* ---------- menú desplegable "Productos" ---------- */
     const productsMenuBtn = $("#productsMenuBtn");
     const productsMenu = $("#productsMenu");
-    const productsHint = $(".products-hint");
     const productsDropdown = productsMenuBtn.closest(".nav-dropdown");
     productsMenuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1056,11 +1025,6 @@
       productsMenuBtn.setAttribute("aria-expanded", String(isOpen));
       if(productsDropdown){
         productsDropdown.classList.toggle("menu-open", isOpen);
-      }
-      if(productsHint){
-        productsHint.classList.remove("pressed");
-        void productsHint.offsetWidth;
-        productsHint.classList.add("pressed");
       }
     });
     document.addEventListener("click", (e) => {
