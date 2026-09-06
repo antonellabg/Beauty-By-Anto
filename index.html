@@ -458,12 +458,16 @@
       position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%) translateY(-4px);
       background:var(--pink-400); color:#fff; border:1px solid var(--gold);
       padding:6px 14px; border-radius:20px; font-size:12.5px; white-space:nowrap;
-      font-family:var(--font-display); opacity:0; pointer-events:none; z-index:130;
+      font-family:var(--font-display); text-decoration:none; cursor:pointer;
+      opacity:0; pointer-events:none; z-index:130;
       transition:opacity .2s ease, transform .2s ease;
     }
     .nav-dropdown:hover .products-hint,
     .nav-dropdown-btn:focus + .products-hint{
-      opacity:1; transform:translateX(-50%) translateY(0);
+      opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0);
+    }
+    .nav-dropdown.menu-open .products-hint{
+      opacity:0 !important; pointer-events:none !important;
     }
     .nav-dropdown .products-hint::before{
       content:""; position:absolute; inset:-4px; border-radius:24px;
@@ -673,12 +677,12 @@
         <a href="#" id="serviciosLink">Servicios</a>
         <div class="nav-dropdown">
           <button class="nav-dropdown-btn" id="productsMenuBtn" aria-haspopup="true" aria-expanded="false">Productos ▾</button>
-          <span class="products-hint" aria-hidden="true">
+          <a class="products-hint" href="productos.html?cat=todos" data-cat="todos">
             Descubrí nuestro catálogo
-            <svg width="20" height="20" viewBox="0 0 24 24">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
               <polygon points="6,3 6,19 10,15 13,21 15,20 12,14 17,14" style="fill:var(--blush-100); stroke:var(--pink-400); stroke-width:1.6; stroke-linejoin:round;"/>
             </svg>
-          </span>
+          </a>
           <div class="nav-dropdown-menu" id="productsMenu">
             <a class="all-products" href="productos.html?cat=todos" data-cat="todos">Todos los productos</a>
             <a href="productos.html?cat=combos" data-cat="combos">Combos</a>
@@ -1045,10 +1049,14 @@
     const productsMenuBtn = $("#productsMenuBtn");
     const productsMenu = $("#productsMenu");
     const productsHint = $(".products-hint");
+    const productsDropdown = productsMenuBtn.closest(".nav-dropdown");
     productsMenuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOpen = productsMenu.classList.toggle("open");
       productsMenuBtn.setAttribute("aria-expanded", String(isOpen));
+      if(productsDropdown){
+        productsDropdown.classList.toggle("menu-open", isOpen);
+      }
       if(productsHint){
         productsHint.classList.remove("pressed");
         void productsHint.offsetWidth;
@@ -1059,6 +1067,7 @@
       if(!productsMenu.contains(e.target) && e.target !== productsMenuBtn){
         productsMenu.classList.remove("open");
         productsMenuBtn.setAttribute("aria-expanded","false");
+        if(productsDropdown) productsDropdown.classList.remove("menu-open");
       }
     });
 
