@@ -308,13 +308,22 @@
        Para agregar o cambiar un código en el futuro, sumá una entrada acá:
        "CODIGO": { percent: 10, expires: "AAAA-MM-DD" (último día válido,
        inclusive, hora de Argentina), dailyLimit: 5 (usos por día, o null
-       para ilimitado) }. */
+       para ilimitado), boostPercent y boostThreshold (opcional: si la
+       compra supera boostThreshold, se usa boostPercent en vez de
+       percent). */
     const COUPONS = {
-      "BBVAPRIMAVERA": { percent: 10, expires: "2026-10-15", dailyLimit: 5 }
+      "BBAPRIMAVERA": { percent: 10, expires: "2026-10-15", dailyLimit: 5, boostPercent: 15, boostThreshold: 20000 }
     };
 
     // Cupón aplicado en esta compra (si hay uno).
     let appliedCoupon = null; // { code, percent }
+
+    function couponPercentFor(coupon, subtotal){
+      if(coupon.boostThreshold && subtotal > coupon.boostThreshold){
+        return coupon.boostPercent;
+      }
+      return coupon.percent;
+    }
 
     function cartTotal(){
       const total = productsTotal();
@@ -418,13 +427,13 @@
           }, { merge: true });
         }
 
-        appliedCoupon = { code: raw, percent: coupon.percent };
-        setDiscountMsg(`¡Código aplicado! -${coupon.percent}% en tu pedido.`, "ok");
+        appliedCoupon = { code: raw, percent: couponPercentFor(coupon, productsTotal()) };
+        setDiscountMsg(`¡Código aplicado! -${appliedCoupon.percent}% en tu pedido.`, "ok");
         input.disabled = true;
         btn.textContent = "Aplicado";
         renderSummary();
         updateWhatsappLinks();
-        updateOrderInFirestore({ cuponAplicado: raw, cuponDescuento: coupon.percent, total: cartTotal() });
+        updateOrderInFirestore({ cuponAplicado: raw, cuponDescuento: appliedCoupon.percent, total: cartTotal() });
       }catch(err){
         console.error("No se pudo validar el código de descuento:", err);
         setDiscountMsg("No pudimos verificar el código en este momento. Probá de nuevo en unos segundos.", "error");
