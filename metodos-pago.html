@@ -94,8 +94,27 @@
       display:flex; justify-content:space-between; font-weight:700; font-size:18px;
       margin-top:10px; color:var(--fuchsia-dark);
     }
+    .summary-discount{
+      display:flex; justify-content:space-between; font-size:14.5px;
+      padding:6px 0; color:#2a9d5c; font-weight:600;
+    }
     .empty-cart{ color:var(--muted); }
     .shipping-note{ color:var(--muted); font-size:12.5px; margin-top:10px; }
+
+    /* ---- código de descuento ---- */
+    .discount-zone{ margin-top:14px; }
+    .discount-zone label{ display:block; font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+    .discount-row{ display:flex; gap:8px; }
+    .discount-row input{
+      flex:1; padding:10px 12px; border-radius:10px; border:1px solid var(--blush-200);
+      font-family:var(--font-body); font-size:14.5px; background:var(--white); color:var(--ink);
+      text-transform:uppercase;
+    }
+    .discount-row .btn-ghost{ white-space:nowrap; }
+    .discount-row .btn-ghost:disabled{ opacity:.55; cursor:not-allowed; }
+    .discount-msg{ font-size:12.5px; margin-top:8px; }
+    .discount-msg.ok{ color:#2a9d5c; }
+    .discount-msg.error{ color:#c0392b; }
     .shipping-zone{ margin-top:14px; }
     .shipping-zone label{ display:block; font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:6px; }
     .shipping-zone select{
@@ -170,9 +189,22 @@
       <div class="card">
         <h2>Tu pedido</h2>
         <div id="summaryItems"></div>
+        <div class="summary-discount" id="summaryDiscountRow" style="display:none;">
+          <span id="summaryDiscountLabel">Descuento</span>
+          <span id="summaryDiscountValue">-$0.00</span>
+        </div>
         <div class="summary-total">
           <span>Total</span>
           <span id="summaryTotal">$0.00</span>
+        </div>
+
+        <div class="discount-zone">
+          <label for="discountCode">¿Tenés un código de descuento?</label>
+          <div class="discount-row">
+            <input type="text" id="discountCode" placeholder="Ingresá tu código" maxlength="30" autocomplete="off">
+            <button type="button" class="btn-ghost" id="applyDiscountBtn">Aplicar</button>
+          </div>
+          <p class="discount-msg" id="discountMsg"></p>
         </div>
 
         <div class="shipping-zone">
@@ -267,15 +299,44 @@
     }
     const cart = loadCart();
 
-    function cartTotal(){
+    /* ---------- productos, sin descuento ---------- */
+    function productsTotal(){
       return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    }
+
+    /* ---------- códigos de descuento ----------
+       Para agregar o cambiar un código en el futuro, sumá una entrada acá:
+       "CODIGO": { percent: 10, expires: "AAAA-MM-DD" (último día válido,
+       inclusive, hora de Argentina), dailyLimit: 5 (usos por día, o null
+       para ilimitado) }. */
+    const COUPONS = {
+      "BBVAPRIMAVERA": { percent: 10, expires: "2026-10-15", dailyLimit: 5 }
+    };
+
+    // Cupón aplicado en esta compra (si hay uno).
+    let appliedCoupon = null; // { code, percent }
+
+    function cartTotal(){
+      const total = productsTotal();
+      if(!appliedCoupon) return total;
+      return total - (total * appliedCoupon.percent / 100);
+    }
+
+    function todayArgentina(){
+      // Fecha de hoy en formato AAAA-MM-DD, en horario de Argentina —
+      // así el corte de "hasta el 15 de octubre" y el límite de usos por
+      // día se basan en el día real de Buenos Aires, no en el huso
+      // horario del navegador de quien compra.
+      return new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
     }
 
     function renderSummary(){
       const list = $("#summaryItems");
+      const discountRow = $("#summaryDiscountRow");
       if(cart.length === 0){
         list.innerHTML = `<p class="empty-cart">No hay productos cargados. Volvé a la tienda para armar tu pedido.</p>`;
         $("#summaryTotal").textContent = "$0.00";
+        discountRow.style.display = "none";
         return;
       }
       let total = 0;
@@ -284,9 +345,105 @@
         total += subtotal;
         return `<div class="summary-row"><span>${item.title} × ${item.qty}</span><span>$${subtotal.toFixed(2)}</span></div>`;
       }).join("");
+
+      if(appliedCoupon){
+        const descuento = total * appliedCoupon.percent / 100;
+        $("#summaryDiscountLabel").textContent = `Descuento (${appliedCoupon.code} -${appliedCoupon.percent}%)`;
+        $("#summaryDiscountValue").textContent = `-$${descuento.toFixed(2)}`;
+        discountRow.style.display = "flex";
+        total -= descuento;
+      }else{
+        discountRow.style.display = "none";
+      }
+
       $("#summaryTotal").textContent = `$${total.toFixed(2)}`;
     }
     renderSummary();
+
+    /* ---------- aplicar código de descuento ---------- */
+    function setDiscountMsg(text, kind){
+      const el = $("#discountMsg");
+      el.textContent = text;
+      el.className = "discount-msg" + (kind ? " " + kind : "");
+    }
+
+    async function applyDiscountCode(){
+      const input = $("#discountCode");
+      const btn = $("#applyDiscountBtn");
+      const raw = input.value.trim().toUpperCase();
+
+      if(cart.length === 0){
+        setDiscountMsg("Agregá productos al carrito antes de aplicar un código.", "error");
+        return;
+      }
+      if(!raw){
+        setDiscountMsg("Ingresá un código.", "error");
+        return;
+      }
+
+      const coupon = COUPONS[raw];
+      if(!coupon){
+        setDiscountMsg("Ese código no existe o no es válido.", "error");
+        return;
+      }
+
+      const today = todayArgentina();
+      if(coupon.expires && today > coupon.expires){
+        setDiscountMsg("Este código ya venció.", "error");
+        return;
+      }
+
+      btn.disabled = true;
+      const originalLabel = btn.textContent;
+      btn.textContent = "Verificando...";
+
+      try{
+        if(coupon.dailyLimit && window.firebaseDb){
+          const { db, doc, getDoc, setDoc, increment, serverTimestamp } = window.firebaseDb;
+          const usageId = `${raw}_${today}`;
+          const usageRef = doc(db, "cuponesUso", usageId);
+          const snap = await getDoc(usageRef);
+          const usedToday = snap.exists() ? (snap.data().usos || 0) : 0;
+
+          if(usedToday >= coupon.dailyLimit){
+            setDiscountMsg("Este código llegó a su límite de usos por hoy. ¡Probá mañana!", "error");
+            return;
+          }
+
+          await setDoc(usageRef, {
+            codigo: raw,
+            fecha: today,
+            usos: increment(1),
+            actualizadoEl: serverTimestamp()
+          }, { merge: true });
+        }
+
+        appliedCoupon = { code: raw, percent: coupon.percent };
+        setDiscountMsg(`¡Código aplicado! -${coupon.percent}% en tu pedido.`, "ok");
+        input.disabled = true;
+        btn.textContent = "Aplicado";
+        renderSummary();
+        updateWhatsappLinks();
+        updateOrderInFirestore({ cuponAplicado: raw, cuponDescuento: coupon.percent, total: cartTotal() });
+      }catch(err){
+        console.error("No se pudo validar el código de descuento:", err);
+        setDiscountMsg("No pudimos verificar el código en este momento. Probá de nuevo en unos segundos.", "error");
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+        return;
+      }
+    }
+
+    const applyDiscountBtn = $("#applyDiscountBtn");
+    if(applyDiscountBtn){
+      applyDiscountBtn.addEventListener("click", applyDiscountCode);
+    }
+    const discountInput = $("#discountCode");
+    if(discountInput){
+      discountInput.addEventListener("keydown", (e) => {
+        if(e.key === "Enter"){ e.preventDefault(); applyDiscountCode(); }
+      });
+    }
 
     /* ---------- guardar el pedido en Firestore (respaldo automático) ---------- */
     // Apenas la clienta llega a esta pantalla con productos en el carrito,
@@ -379,6 +536,7 @@
         return `• ${item.title} x${item.qty} (${unitario}) — $${subtotal.toLocaleString("es-AR")}`;
       });
 
+      const subtotal = productsTotal();
       const total = cartTotal();
 
       const zonaSelect = $("#shippingZone");
@@ -387,7 +545,13 @@
       let msg = "¡Hola! Quiero confirmar mi pedido en Beauty by Anto 💕\n\n";
       if(nombre) msg += `Nombre: ${nombre}\n\n`;
       msg += "🛍️ Mi pedido:\n" + lineas.join("\n") + "\n\n";
-      msg += `💰 Total productos: $${total.toLocaleString("es-AR")}\n\n`;
+      if(appliedCoupon){
+        msg += `Subtotal: $${subtotal.toLocaleString("es-AR")}\n`;
+        msg += `🏷️ Código ${appliedCoupon.code} (-${appliedCoupon.percent}%)\n`;
+        msg += `💰 Total productos: $${total.toLocaleString("es-AR")}\n\n`;
+      }else{
+        msg += `💰 Total productos: $${total.toLocaleString("es-AR")}\n\n`;
+      }
       if(zona) msg += `📦 Zona de envío: ${zona}\n(el costo de envío se confirma acá antes de pagar)\n\n`;
       msg += `Método de pago: ${metodoPago}`;
 

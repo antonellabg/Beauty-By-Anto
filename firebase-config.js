@@ -17,6 +17,9 @@ import {
   addDoc,
   updateDoc,
   doc,
+  getDoc,
+  setDoc,
+  increment,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
@@ -63,6 +66,9 @@ window.firebaseDb = {
   addDoc,
   updateDoc,
   doc,
+  getDoc,
+  setDoc,
+  increment,
   serverTimestamp
 };
 
