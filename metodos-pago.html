@@ -281,6 +281,13 @@
     const $ = s => document.querySelector(s);
     const $$ = s => [...document.querySelectorAll(s)];
 
+    // URL del Web App de Google Apps Script que manda el mail de
+    // agradecimiento apenas se confirma una compra. Se completa después
+    // de desplegar el proyecto de Apps Script (ver guía de Anto) — hasta
+    // entonces queda vacía y el aviso simplemente no se envía (el pedido
+    // igual se guarda en Firestore como siempre).
+    const MAILING_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxquOIu1mZcuFfggN1tLy66dxQnPNxq5JrHS5sri2CkR0v9aXdZBxNQ9p4SUi2D0wH0/exec";
+
     /* ---------- exigir sesión iniciada ---------- */
     // Si alguien llega a esta página sin haber iniciado sesión desde el
     // inicio (por ejemplo, escribiendo la URL a mano), lo mandamos de
@@ -505,6 +512,8 @@
           zonaEnvio: "",
           metodoPago: "",
           estado: "pendiente",
+          recordatorioEnviado: false,
+          agradecimientoEnviado: false,
           creadoEl: serverTimestamp()
         });
         sendNtfyNotification("Nuevo pedido iniciado", "shopping_bags", buildResumenTexto(session));
@@ -591,6 +600,36 @@
       });
     }
 
+    // Avisa al Web App de Google Apps Script para que mande el mail de
+    // agradecimiento al instante. Se manda como text/plain (no
+    // application/json) a propósito: así el navegador no hace un
+    // preflight CORS, que Apps Script no responde bien. Es un aviso
+    // "mejor esfuerzo" — si falla (sin conexión, Web App caída, URL
+    // todavía vacía), no interrumpe la compra: el envío diario de
+    // Apps Script igual lo va a encontrar y mandar como red de
+    // seguridad.
+    function avisarAgradecimiento(metodoPago){
+      if(!MAILING_WEBAPP_URL || !orderDocRef) return;
+      const session = getSessionData();
+      try{
+        fetch(MAILING_WEBAPP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            tipo: "agradecimiento",
+            pedidoId: orderDocRef.id,
+            clienteEmail: session.email || "",
+            clienteNombre: session.displayName || "",
+            items: cart.map(item => ({ title: item.title, price: item.price, qty: item.qty })),
+            total: cartTotal(),
+            metodoPago
+          })
+        }).catch(err => console.error("No se pudo avisar al Web App de mailing:", err));
+      }catch(err){
+        console.error("No se pudo avisar al Web App de mailing:", err);
+      }
+    }
+
     // Cuando la clienta efectivamente toca "Confirmar pedido por WhatsApp",
     // dejamos marcado en Firestore que este pedido sí llegó a esa instancia
     // (no solo que abrió la pantalla de pago).
@@ -599,6 +638,7 @@
     if(waTransferBtn){
       waTransferBtn.addEventListener("click", () => {
         updateOrderInFirestore({ metodoPago: "Transferencia bancaria", estado: "confirmado_whatsapp" });
+        avisarAgradecimiento("Transferencia bancaria");
         const zona = shippingZoneSelect ? shippingZoneSelect.value : "";
         sendNtfyNotification("Pedido confirmado por WhatsApp", "white_check_mark", `Transferencia bancaria${zona ? " - Zona: " + zona : ""}`);
       });
@@ -606,6 +646,7 @@
     if(waMpBtn){
       waMpBtn.addEventListener("click", () => {
         updateOrderInFirestore({ metodoPago: "Mercado Pago", estado: "confirmado_whatsapp" });
+        avisarAgradecimiento("Mercado Pago");
         const zona = shippingZoneSelect ? shippingZoneSelect.value : "";
         sendNtfyNotification("Pedido confirmado por WhatsApp", "white_check_mark", `Mercado Pago${zona ? " - Zona: " + zona : ""}`);
       });
