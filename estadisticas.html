@@ -78,7 +78,15 @@
     th{ background:var(--blush-100); color:var(--fuchsia-dark); font-weight:700; }
     tr:last-child td{ border-bottom:none; }
     .estado-pendiente{ color:#c0392b; font-weight:600; }
-    .estado-confirmado{ color:#2a9d5c; font-weight:600; }
+    .estado-confirmado{ color:#9c6f0b; font-weight:600; }
+    .pago-ok{ color:#2a9d5c; font-weight:600; }
+
+    .btn-pagado{
+      font-family:var(--font-body); font-size:12px; font-weight:700; padding:6px 12px;
+      border-radius:999px; border:1px solid #2a9d5c; background:#eafaf1; color:#1f7a44; cursor:pointer;
+    }
+    .btn-pagado:hover{ background:#2a9d5c; color:var(--white); }
+    .btn-pagado:disabled{ opacity:.5; cursor:default; }
 
     .loading, .empty{ text-align:center; color:var(--muted); padding:30px 0; font-size:14px; }
     .err{ color:#c0392b; text-align:center; padding:20px 0; font-size:14px; }
@@ -100,6 +108,13 @@
       <br>Los datos pueden tardar unas horas en aparecer la primera vez.
     </div>
 
+    <div class="ga-note">
+      <strong>Importante sobre "Confirmado por WhatsApp":</strong> ese estado solo significa que la clienta
+      tocó el botón para mandar el mensaje — no que el pago efectivamente llegó. Cuando chequees tu cuenta
+      (transferencia o Mercado Pago) y veas que sí entró el dinero, tocá <strong>"Marcar como pagado"</strong>
+      en la tabla de abajo: recién ahí se manda el mail de agradecimiento, y queda registrado como venta real.
+    </div>
+
     <div id="content">
       <p class="loading">Cargando datos de pedidos…</p>
     </div>
@@ -108,6 +123,12 @@
   <script type="module" src="firebase-config.js"></script>
   <script>
     const $ = s => document.querySelector(s);
+
+    // URL del Web App de Apps Script (la misma que se usa en
+    // metodos-pago.html) — se usa acá para mandar el mail de
+    // agradecimiento al instante, en el momento en que VOS marcás un
+    // pedido como pagado de verdad.
+    const MAILING_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxquOIu1mZcuFfggN1tLy66dxQnPNxq5JrHS5sri2CkR0v9aXdZBxNQ9p4SUi2D0wH0/exec";
 
     let pedidos = [];
     let currentFilter = "all"; // all | 7 | 30
@@ -131,10 +152,11 @@
       const list = filteredPedidos();
       const total = list.length;
       const abandonados = list.filter(p => p.estado === "pendiente").length;
-      const confirmados = list.filter(p => p.estado === "confirmado_whatsapp").length;
+      const confirmadosWhatsapp = list.filter(p => p.estado === "confirmado_whatsapp").length;
+      const pagosVerificados = list.filter(p => p.pagoConfirmado === true).length;
       const tasaAbandono = total > 0 ? Math.round((abandonados / total) * 100) : 0;
-      const montoConfirmado = list
-        .filter(p => p.estado === "confirmado_whatsapp")
+      const montoVerificado = list
+        .filter(p => p.pagoConfirmado === true)
         .reduce((sum, p) => sum + (p.total || 0), 0);
 
       const filasTabla = list
@@ -143,14 +165,25 @@
         .slice(0, 50)
         .map(p => {
           const fecha = p.creadoEl ? p.creadoEl.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }) : "—";
-          const estadoTxt = p.estado === "confirmado_whatsapp" ? "Confirmado" : (p.estado === "pendiente" ? "Abandonado" : (p.estado || "—"));
+          const estadoTxt = p.estado === "confirmado_whatsapp" ? "Confirmado por WhatsApp" : (p.estado === "pendiente" ? "Abandonado" : (p.estado || "—"));
           const estadoClass = p.estado === "confirmado_whatsapp" ? "estado-confirmado" : "estado-pendiente";
           const nombre = p.clienteNombre || p.clienteEmail || "Sin datos";
+
+          let pagoCelda;
+          if(p.pagoConfirmado === true){
+            pagoCelda = `<span class="pago-ok">✅ Pagado</span>`;
+          }else if(p.estado === "confirmado_whatsapp"){
+            pagoCelda = `<button class="btn-pagado" data-id="${p.id}">Marcar como pagado</button>`;
+          }else{
+            pagoCelda = `<span style="color:var(--muted);">—</span>`;
+          }
+
           return `<tr>
             <td>${fecha}</td>
             <td>${nombre}</td>
             <td>${fmtMoney(p.total)}</td>
             <td class="${estadoClass}">${estadoTxt}</td>
+            <td>${pagoCelda}</td>
             <td>${p.cuponAplicado || "—"}</td>
           </tr>`;
         }).join("");
@@ -171,17 +204,21 @@
             <span class="num">${abandonados}</span>
             <span class="label">Carritos abandonados</span>
           </div>
+          <div class="card">
+            <span class="num">${confirmadosWhatsapp}</span>
+            <span class="label">Dijeron que iban a pagar (WhatsApp)</span>
+          </div>
           <div class="card good">
-            <span class="num">${confirmados}</span>
-            <span class="label">Pedidos confirmados por WhatsApp</span>
+            <span class="num">${pagosVerificados}</span>
+            <span class="label">Pagos verificados ✅</span>
           </div>
           <div class="card">
             <span class="num">${tasaAbandono}%</span>
             <span class="label">Tasa de abandono</span>
           </div>
           <div class="card good">
-            <span class="num">${fmtMoney(montoConfirmado)}</span>
-            <span class="label">Monto confirmado</span>
+            <span class="num">${fmtMoney(montoVerificado)}</span>
+            <span class="label">Monto verificado</span>
           </div>
         </div>
 
@@ -189,13 +226,66 @@
         ${list.length === 0
           ? '<p class="empty">No hay pedidos en este período.</p>'
           : `<table>
-              <thead><tr><th>Fecha</th><th>Clienta</th><th>Total</th><th>Estado</th><th>Cupón</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Clienta</th><th>Total</th><th>Estado</th><th>Pago</th><th>Cupón</th></tr></thead>
               <tbody>${filasTabla}</tbody>
             </table>`
         }
       `;
 
       $$filterButtons();
+      $$botonesPagado();
+    }
+
+    // Marca el pedido como efectivamente pagado: lo actualiza en
+    // Firestore y recién en ese momento avisa al Web App de Apps Script
+    // para que mande el mail de agradecimiento. Como lo hacés vos acá,
+    // con tu navegador abierto, el aviso sale al instante.
+    async function marcarComoPagado(pedido, btn){
+      if(!window.firebaseDb) return;
+      const { db, doc, updateDoc, serverTimestamp } = window.firebaseDb;
+
+      btn.disabled = true;
+      btn.textContent = "Marcando...";
+
+      try{
+        await updateDoc(doc(db, "pedidos", pedido.id), {
+          pagoConfirmado: true,
+          pagoConfirmadoEl: serverTimestamp()
+        });
+
+        if(MAILING_WEBAPP_URL){
+          fetch(MAILING_WEBAPP_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              tipo: "agradecimiento",
+              pedidoId: pedido.id,
+              clienteEmail: pedido.clienteEmail || "",
+              clienteNombre: pedido.clienteNombre || "",
+              items: pedido.items || [],
+              total: pedido.total || 0,
+              metodoPago: pedido.metodoPago || ""
+            })
+          }).catch(err => console.error("No se pudo avisar al Web App de mailing:", err));
+        }
+
+        pedido.pagoConfirmado = true;
+        render();
+      }catch(err){
+        console.error("No se pudo marcar el pedido como pagado:", err);
+        btn.disabled = false;
+        btn.textContent = "Marcar como pagado";
+        alert("No se pudo marcar como pagado. Probá de nuevo en unos segundos.");
+      }
+    }
+
+    function $$botonesPagado(){
+      document.querySelectorAll(".btn-pagado").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const pedido = pedidos.find(p => p.id === btn.dataset.id);
+          if(pedido) marcarComoPagado(pedido, btn);
+        });
+      });
     }
 
     function $$filterButtons(){
@@ -219,6 +309,7 @@
           const data = d.data();
           return {
             ...data,
+            id: d.id,
             creadoEl: data.creadoEl && data.creadoEl.toDate ? data.creadoEl.toDate() : null
           };
         });

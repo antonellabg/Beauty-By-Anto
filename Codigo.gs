@@ -7,12 +7,15 @@
       carrito cargado y no confirma la compra, a las 48hs le llega un
       mail recordándoselo.
 
-   2. Agradecimiento por compra: apenas alguien confirma un pedido por
-      WhatsApp, le llega un mail de agradecimiento (al instante, avisado
-      desde la web). Además, una vez por día este script revisa si
-      quedó algún agradecimiento sin mandar (por ejemplo, si la clienta
-      se quedó sin conexión justo en ese momento) y lo manda igual, como
-      red de seguridad.
+   2. Agradecimiento por compra: NO se manda apenas la clienta toca
+      "Confirmar por WhatsApp" (eso solo significa que dijo que iba a
+      pagar, no que pagó). Se manda cuando Anto, desde la página de
+      estadísticas del sitio, marca el pedido como "pagado" después de
+      chequear que el dinero realmente entró — ahí se avisa al instante.
+      Además, una vez por día este script revisa si quedó algún pago
+      marcado sin su mail de agradecimiento (por ejemplo, por un corte
+      de conexión justo en ese momento) y lo manda igual, como red de
+      seguridad.
 
    3. Promos y códigos de descuento: desde el menú "💌 Beauty By Anto"
       de esta planilla, podés mandar un mail a todas las personas
@@ -30,6 +33,13 @@ const FIRESTORE_BASE = "https://firestore.googleapis.com/v1/projects/" + PROJECT
 const REMINDER_HOURS = 48;
 const FROM_NAME = "Beauty By Anto";
 const SHOP_URL = "https://beauty-by-anto.web.app/productos.html";
+
+// ⚠️ Tiene que ser EXACTAMENTE igual al MARK_PAID_TOKEN que está en
+// metodos-pago.html — es lo que permite que el botón "Marcar pagado"
+// de la notificación del celular funcione sin que tengas que loguearte
+// en nada.
+const MARK_PAID_TOKEN = "OuGoaGhlMLtusLzwOyuUtEK1VFQh3t1A";
+const NTFY_TOPIC = "beautybyanto987";
 
 /* ---------------------------------------------------------------------
    Menú de la planilla
@@ -72,9 +82,11 @@ function procesarRecordatoriosYAgradecimientos(){
     fsPatchFields_(pedido.path, { recordatorioEnviado: true });
   });
 
-  // --- Red de seguridad: agradecimientos que no se mandaron al instante ---
-  const confirmadosDocs = fsRunQuery_("pedidos", "estado", "EQUAL", { stringValue: "confirmado_whatsapp" });
-  confirmadosDocs.forEach(doc => {
+  // --- Red de seguridad: pagos verificados por Anto que por algún motivo
+  // no llegaron a avisar al instante (por ejemplo, se cerró la pestaña
+  // de estadísticas justo en ese momento) ---
+  const pagadosDocs = fsRunQuery_("pedidos", "pagoConfirmado", "EQUAL", { booleanValue: true });
+  pagadosDocs.forEach(doc => {
     const pedido = docToPlano_(doc);
     if(pedido.agradecimientoEnviado === true) return;
 
@@ -127,8 +139,66 @@ function desactivarTriggerDiario(){
 }
 
 /* ---------------------------------------------------------------------
-   Web App: recibe el aviso instantáneo desde metodos-pago.html apenas
-   se confirma una compra por WhatsApp.
+   Web App (GET): el botón "✅ Marcar pagado" de la notificación del
+   celular llega acá. Marca el pedido como pagado, manda el mail de
+   agradecimiento, y te avisa por notificación que quedó hecho.
+   --------------------------------------------------------------------- */
+function doGet(e){
+  const accion = e.parameter.accion;
+
+  if(accion === "marcarPagado"){
+    const pedidoId = e.parameter.pedidoId;
+    const token = e.parameter.token;
+
+    if(token !== MARK_PAID_TOKEN){
+      return ContentService.createTextOutput("Token inválido.");
+    }
+    if(!pedidoId){
+      return ContentService.createTextOutput("Falta el pedido.");
+    }
+
+    const pedido = fsGetDoc_("pedidos/" + pedidoId);
+    if(!pedido){
+      return ContentService.createTextOutput("No se encontró ese pedido.");
+    }
+
+    if(pedido.pagoConfirmado === true){
+      enviarNtfy_("Ese pedido ya estaba marcado como pagado 👍", "");
+      return ContentService.createTextOutput("Ya estaba marcado como pagado.");
+    }
+
+    fsPatchFields_(pedido.path, { pagoConfirmado: true });
+
+    if(pedido.clienteEmail){
+      enviarMailAgradecimiento_(pedido);
+    }
+
+    const nombre = pedido.clienteNombre || pedido.clienteEmail || "";
+    const total = Number(pedido.total || 0).toLocaleString("es-AR");
+    enviarNtfy_("✅ Pago verificado", (nombre ? nombre + " — " : "") + "$" + total);
+
+    return ContentService.createTextOutput("Listo, marcado como pagado.");
+  }
+
+  return ContentService.createTextOutput("Acción no reconocida.");
+}
+
+function enviarNtfy_(titulo, texto){
+  try{
+    UrlFetchApp.fetch("https://ntfy.sh/" + NTFY_TOPIC, {
+      method: "post",
+      headers: { "Title": titulo, "Tags": "white_check_mark", "Priority": "default" },
+      payload: texto || "",
+      muteHttpExceptions: true
+    });
+  }catch(err){
+    Logger.log("Error mandando notificación ntfy: " + err);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Web App (POST): recibe el aviso instantáneo cuando Anto marca un
+   pedido como pagado desde estadisticas.html.
    --------------------------------------------------------------------- */
 function doPost(e){
   try{
@@ -417,6 +487,16 @@ function fsRunQuery_(collectionId, fieldPath, op, fsValueWrapped){
   }
   const data = JSON.parse(resp.getContentText());
   return data.filter(r => r.document).map(r => r.document);
+}
+
+function fsGetDoc_(path){
+  const url = FIRESTORE_BASE + "/" + path;
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  if(resp.getResponseCode() >= 300){
+    Logger.log("Error GET " + path + ": " + resp.getContentText());
+    return null;
+  }
+  return docToPlano_(JSON.parse(resp.getContentText()));
 }
 
 function fsGetAllDocs_(collectionId){
