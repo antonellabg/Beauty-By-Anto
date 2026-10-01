@@ -489,7 +489,11 @@
         const headers = { "Title": titulo, "Tags": tags, "Priority": "default" };
         if(pedidoIdParaBoton){
           const url = `${MAILING_WEBAPP_URL_PARA_BOTON}?accion=marcarPagado&pedidoId=${encodeURIComponent(pedidoIdParaBoton)}&token=${encodeURIComponent(MARK_PAID_TOKEN)}`;
-          headers["Actions"] = `http, ✅ Marcar pagado, ${url}, method=GET`;
+          // OJO: los headers HTTP solo permiten texto ISO-8859-1 (sin
+          // emojis) — el fetch() del navegador tira error si hay uno
+          // acá. Los emojis sí pueden ir en el cuerpo del mensaje (el
+          // "texto" de sendNtfyNotification), ahí no hay problema.
+          headers["Actions"] = `http, Marcar pagado, ${url}, method=GET`;
         }
         await fetch("https://ntfy.sh/" + NTFY_TOPIC, {
           method: "POST",
@@ -630,7 +634,7 @@
         const session = getSessionData();
         const nombre = session.displayName || session.email || "";
         sendNtfyNotification(
-          "🕒 Dijo que va a pagar (sin verificar)",
+          "Dijo que va a pagar (sin verificar)",
           "hourglass_flowing_sand",
           `Transferencia bancaria${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
@@ -644,7 +648,7 @@
         const session = getSessionData();
         const nombre = session.displayName || session.email || "";
         sendNtfyNotification(
-          "🕒 Dijo que va a pagar (sin verificar)",
+          "Dijo que va a pagar (sin verificar)",
           "hourglass_flowing_sand",
           `Mercado Pago${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
