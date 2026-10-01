@@ -293,7 +293,7 @@
 
     /* ---------- products ---------- */
     .products-grid{
-      display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:18px;
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px;
     }
     .product{
       background:var(--white); border-radius:14px; overflow:hidden;
@@ -1201,7 +1201,10 @@
         const password = $("#loginPassword").value;
         $("#loginError").classList.remove("show");
         fbSignInWithEmailAndPassword(auth, email, password)
-          .then(() => { $("#loginPanel").reset(); })
+          .then(() => {
+            $("#loginPanel").reset();
+            if(window.trackEvent) trackEvent("login", { method: "email" });
+          })
           .catch(err => {
             $("#loginError").textContent = authErrorMessage(err);
             $("#loginError").classList.add("show");
@@ -1216,7 +1219,10 @@
         $("#registerError").classList.remove("show");
         fbCreateUserWithEmailAndPassword(auth, email, password)
           .then(cred => fbUpdateProfile(cred.user, { displayName: name }))
-          .then(() => { $("#registerPanel").reset(); })
+          .then(() => {
+            $("#registerPanel").reset();
+            if(window.trackEvent) trackEvent("sign_up", { method: "email" });
+          })
           .catch(err => {
             $("#registerError").textContent = authErrorMessage(err);
             $("#registerError").classList.add("show");
@@ -1241,10 +1247,14 @@
 
       $("#googleSignInBtn").onclick = () => {
         $("#loginError").classList.remove("show");
-        fbSignInWithPopup(auth, googleProvider).catch(err => {
-          $("#loginError").textContent = authErrorMessage(err);
-          $("#loginError").classList.add("show");
-        });
+        fbSignInWithPopup(auth, googleProvider)
+          .then(() => {
+            if(window.trackEvent) trackEvent("login", { method: "google" });
+          })
+          .catch(err => {
+            $("#loginError").textContent = authErrorMessage(err);
+            $("#loginError").classList.add("show");
+          });
       };
 
       // Se dispara al cargar la página y cada vez que cambia el estado de

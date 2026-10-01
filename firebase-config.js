@@ -1,6 +1,11 @@
 // Importar Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {
+  getAnalytics,
+  isSupported as analyticsIsSupported,
+  logEvent
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js";
+import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
@@ -19,6 +24,9 @@ import {
   doc,
   getDoc,
   setDoc,
+  getDocs,
+  query,
+  where,
   increment,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -41,6 +49,27 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 // Siempre deja elegir cuenta de Google, en vez de reusar la última sesión.
 provider.setCustomParameters({ prompt: "select_account" });
+
+// Google Analytics (GA4): mide visitas a cada página de forma automática
+// apenas se inicializa (no hace falta código extra por página), y lo
+// usamos también para contar inicios de sesión y registros a mano con
+// trackEvent(). analyticsIsSupported() chequea que el navegador lo
+// soporte (falla, por ejemplo, si la clienta bloquea cookies/trackers),
+// así que si no está disponible, trackEvent() simplemente no hace nada
+// en vez de romper la página.
+let analytics = null;
+analyticsIsSupported().then(ok => {
+  if(ok) analytics = getAnalytics(app);
+}).catch(() => { /* navegador sin soporte: seguimos sin analytics */ });
+
+window.trackEvent = function(nombreEvento, params){
+  if(!analytics) return;
+  try{
+    logEvent(analytics, nombreEvento, params || {});
+  }catch(err){
+    console.error("No se pudo registrar el evento de Analytics:", err);
+  }
+};
 
 // Hacer disponibles las funciones para el resto de la página
 window.firebaseAuth = {
@@ -68,6 +97,9 @@ window.firebaseDb = {
   doc,
   getDoc,
   setDoc,
+  getDocs,
+  query,
+  where,
   increment,
   serverTimestamp
 };
