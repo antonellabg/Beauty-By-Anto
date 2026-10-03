@@ -54,6 +54,30 @@ function onOpen(){
     .addItem("✅ Activar envío diario automático", "activarTriggerDiario")
     .addItem("⛔ Desactivar envío diario automático", "desactivarTriggerDiario")
     .addToUi();
+
+  prepararHojaPromo_();
+}
+
+// Prepara una hoja llamada "Promo" con dos celdas fijas para escribir
+// el asunto y el mensaje de la próxima promo — ahí SÍ podés escribir
+// varios renglones (Alt+Enter dentro de la celda B2 para bajar de
+// línea), cosa que el cuadro de diálogo de Apps Script no permite.
+// Si la hoja ya existe, no la toca.
+function prepararHojaPromo_(){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let hoja = ss.getSheetByName("Promo");
+  if(hoja) return;
+
+  hoja = ss.insertSheet("Promo");
+  hoja.getRange("A1").setValue("Asunto:");
+  hoja.getRange("B1").setValue("¡15% OFF con el código BBAPRIMAVERA! 🌷");
+  hoja.getRange("A2").setValue("Mensaje:");
+  hoja.getRange("B2").setValue("Escribí acá el mensaje. Para bajar de línea dentro de esta celda usá Alt+Enter (no Enter solo). Podés usar {nombre} donde quieras que vaya el nombre de la persona.");
+  hoja.setColumnWidth(1, 90);
+  hoja.setColumnWidth(2, 520);
+  hoja.getRange("B2").setWrap(true);
+  hoja.setRowHeight(2, 140);
+  hoja.getRange("A1:A2").setFontWeight("bold");
 }
 
 /* ---------------------------------------------------------------------
@@ -248,22 +272,26 @@ function construirMailPromo_(nombreDestinatario, mensaje){
   return { body, htmlBody };
 }
 
-// Pide asunto y mensaje por los cuadros de diálogo de siempre. Devuelve
-// null si Anto cancela en cualquiera de los dos pasos.
+// Lee el asunto y el mensaje de la hoja "Promo" (celdas B1 y B2), en
+// vez de un cuadro de diálogo — así sí se pueden escribir varios
+// renglones (con Alt+Enter dentro de la celda), cosa que el cuadro de
+// diálogo de Apps Script no deja hacer. Devuelve null si falta algo,
+// después de avisar con un cartel.
 function pedirAsuntoYMensaje_(ui){
-  const asuntoResp = ui.prompt("Asunto del mail", "Ej: ¡15% OFF con el código BBAPRIMAVERA! 🌷", ui.ButtonSet.OK_CANCEL);
-  if(asuntoResp.getSelectedButton() !== ui.Button.OK) return null;
-  const asunto = asuntoResp.getResponseText().trim();
-  if(!asunto){ ui.alert("Falta el asunto."); return null; }
+  prepararHojaPromo_();
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Promo");
 
-  const mensajeResp = ui.prompt(
-    "Mensaje",
-    "Escribí el mensaje en texto simple (sin HTML). Podés usar {nombre} donde quieras que vaya el nombre de la persona.",
-    ui.ButtonSet.OK_CANCEL
-  );
-  if(mensajeResp.getSelectedButton() !== ui.Button.OK) return null;
-  const mensaje = mensajeResp.getResponseText();
-  if(!mensaje.trim()){ ui.alert("Falta el mensaje."); return null; }
+  const asunto = String(hoja.getRange("B1").getValue() || "").trim();
+  const mensaje = String(hoja.getRange("B2").getValue() || "").trim();
+
+  if(!asunto){
+    ui.alert("Falta el asunto. Escribilo en la hoja \"Promo\", celda B1.");
+    return null;
+  }
+  if(!mensaje){
+    ui.alert("Falta el mensaje. Escribilo en la hoja \"Promo\", celda B2.");
+    return null;
+  }
 
   return { asunto, mensaje };
 }
@@ -354,7 +382,7 @@ function enviarPromoATodas(){
 // solo las que apunten a una URL real. Si en algún momento cambiás el
 // logo, subí el archivo nuevo al sitio (mismo lugar que el resto de
 // las imágenes) y actualizá esta línea con el nombre del archivo.
-const LOGO_URL = "https://beauty-by-anto.web.app/logo-mail.png";
+const LOGO_URL = "https://beauty-by-anto.web.app/logo-mail-v3.png";
 
 function listaItemsTexto_(items){
   if(!items || !items.length) return "";
