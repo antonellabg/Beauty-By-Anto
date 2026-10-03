@@ -168,6 +168,7 @@
           const estadoTxt = p.estado === "confirmado_whatsapp" ? "Confirmado por WhatsApp" : (p.estado === "pendiente" ? "Abandonado" : (p.estado || "—"));
           const estadoClass = p.estado === "confirmado_whatsapp" ? "estado-confirmado" : "estado-pendiente";
           const nombre = p.clienteNombre || p.clienteEmail || "Sin datos";
+          const telefono = p.clienteTelefono || "—";
 
           let pagoCelda;
           if(p.pagoConfirmado === true){
@@ -181,6 +182,7 @@
           return `<tr>
             <td>${fecha}</td>
             <td>${nombre}</td>
+            <td>${telefono}</td>
             <td>${fmtMoney(p.total)}</td>
             <td class="${estadoClass}">${estadoTxt}</td>
             <td>${pagoCelda}</td>
@@ -226,7 +228,7 @@
         ${list.length === 0
           ? '<p class="empty">No hay pedidos en este período.</p>'
           : `<table>
-              <thead><tr><th>Fecha</th><th>Clienta</th><th>Total</th><th>Estado</th><th>Pago</th><th>Cupón</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Clienta</th><th>Teléfono</th><th>Total</th><th>Estado</th><th>Pago</th><th>Cupón</th></tr></thead>
               <tbody>${filasTabla}</tbody>
             </table>`
         }

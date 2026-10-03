@@ -208,6 +208,12 @@
         </div>
 
         <div class="shipping-zone">
+          <label for="clientePhone">Tu número de WhatsApp (por si necesitamos contactarte)</label>
+          <input type="tel" id="clientePhone" placeholder="Ej: 1136370072" autocomplete="tel" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--blush-200);font-family:var(--font-body);font-size:14.5px;background:var(--white);color:var(--ink);">
+          <p class="shipping-note" id="phoneMsg" style="display:none;color:#c0392b;margin-top:6px;">Por favor ingresá tu número de WhatsApp antes de confirmar.</p>
+        </div>
+
+        <div class="shipping-zone">
           <label for="shippingZone">¿A qué zona hacemos el envío?</label>
           <select id="shippingZone">
             <option value="">Elegí una opción...</option>
@@ -524,6 +530,7 @@
           total: cartTotal(),
           clienteNombre: session.displayName || "",
           clienteEmail: session.email || "",
+          clienteTelefono: "",
           clienteUid: session.uid || "",
           zonaEnvio: "",
           metodoPago: "",
@@ -617,6 +624,31 @@
       });
     }
 
+    // Guarda el teléfono apenas lo escribe (no hace falta que confirme
+    // nada) — así, aunque después no toque "Confirmar por WhatsApp",
+    // Anto ya tiene cómo contactarla igual.
+    const clientePhoneInput = $("#clientePhone");
+    if(clientePhoneInput){
+      clientePhoneInput.addEventListener("blur", () => {
+        const tel = clientePhoneInput.value.trim();
+        if(tel) updateOrderInFirestore({ clienteTelefono: tel });
+      });
+    }
+
+    // Antes de dejar pasar el click de confirmar, exige que haya un
+    // teléfono cargado — si falta, avisa y no deja seguir.
+    function telefonoValido(){
+      const tel = clientePhoneInput ? clientePhoneInput.value.trim() : "";
+      const msg = $("#phoneMsg");
+      if(!tel){
+        if(msg) msg.style.display = "block";
+        if(clientePhoneInput) clientePhoneInput.focus();
+        return false;
+      }
+      if(msg) msg.style.display = "none";
+      return true;
+    }
+
     // Cuando la clienta efectivamente toca "Confirmar pedido por WhatsApp",
     // dejamos marcado en Firestore que este pedido sí llegó a esa instancia
     // (no solo que abrió la pantalla de pago). OJO: esto significa "dijo
@@ -628,8 +660,9 @@
     const waTransferBtn = $("#waConfirmTransferencia");
     const waMpBtn = $("#waConfirmMercadoPago");
     if(waTransferBtn){
-      waTransferBtn.addEventListener("click", () => {
-        updateOrderInFirestore({ metodoPago: "Transferencia bancaria", estado: "confirmado_whatsapp" });
+      waTransferBtn.addEventListener("click", (e) => {
+        if(!telefonoValido()){ e.preventDefault(); return; }
+        updateOrderInFirestore({ metodoPago: "Transferencia bancaria", estado: "confirmado_whatsapp", clienteTelefono: clientePhoneInput.value.trim() });
         const zona = shippingZoneSelect ? shippingZoneSelect.value : "";
         const session = getSessionData();
         const nombre = session.displayName || session.email || "";
@@ -642,8 +675,9 @@
       });
     }
     if(waMpBtn){
-      waMpBtn.addEventListener("click", () => {
-        updateOrderInFirestore({ metodoPago: "Mercado Pago", estado: "confirmado_whatsapp" });
+      waMpBtn.addEventListener("click", (e) => {
+        if(!telefonoValido()){ e.preventDefault(); return; }
+        updateOrderInFirestore({ metodoPago: "Mercado Pago", estado: "confirmado_whatsapp", clienteTelefono: clientePhoneInput.value.trim() });
         const zona = shippingZoneSelect ? shippingZoneSelect.value : "";
         const session = getSessionData();
         const nombre = session.displayName || session.email || "";
