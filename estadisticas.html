@@ -88,6 +88,20 @@
     .btn-pagado:hover{ background:#2a9d5c; color:var(--white); }
     .btn-pagado:disabled{ opacity:.5; cursor:default; }
 
+    .borrar-zone{
+      display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;
+    }
+    .borrar-zone button{
+      font-family:var(--font-body); font-size:12.5px; font-weight:700; padding:7px 13px;
+      border-radius:999px; border:1px solid var(--blush-200); background:var(--white);
+      color:var(--ink); cursor:pointer;
+    }
+    .borrar-zone .btn-borrar-sel{
+      border-color:#c0392b; background:#fdecea; color:#c0392b;
+    }
+    .borrar-zone .btn-borrar-sel:hover{ background:#c0392b; color:var(--white); }
+    .borrar-zone .contador{ font-size:12.5px; color:var(--muted); }
+
     .loading, .empty{ text-align:center; color:var(--muted); padding:30px 0; font-size:14px; }
     .err{ color:#c0392b; text-align:center; padding:20px 0; font-size:14px; }
   </style>
@@ -180,6 +194,7 @@
           }
 
           return `<tr>
+            <td><input type="checkbox" class="chk-borrar" data-id="${p.id}"></td>
             <td>${fecha}</td>
             <td>${nombre}</td>
             <td>${telefono}</td>
@@ -227,8 +242,14 @@
         <h2 class="section-title">Últimos pedidos</h2>
         ${list.length === 0
           ? '<p class="empty">No hay pedidos en este período.</p>'
-          : `<table>
-              <thead><tr><th>Fecha</th><th>Clienta</th><th>Teléfono</th><th>Total</th><th>Estado</th><th>Pago</th><th>Cupón</th></tr></thead>
+          : `<div class="borrar-zone">
+              <button id="seleccionarTodos">Seleccionar todos</button>
+              <button id="deseleccionarTodos">Deseleccionar todos</button>
+              <button class="btn-borrar-sel" id="borrarSeleccionados">🗑️ Borrar seleccionados</button>
+              <span class="contador" id="contadorSeleccionados">0 seleccionados</span>
+            </div>
+            <table>
+              <thead><tr><th></th><th>Fecha</th><th>Clienta</th><th>Teléfono</th><th>Total</th><th>Estado</th><th>Pago</th><th>Cupón</th></tr></thead>
               <tbody>${filasTabla}</tbody>
             </table>`
         }
@@ -236,6 +257,72 @@
 
       $$filterButtons();
       $$botonesPagado();
+      $$controlesBorrado();
+    }
+
+    // Borra los pedidos marcados con el casillero. Pide confirmación
+    // mostrando cuántos se van a borrar, para evitar un click accidental.
+    async function borrarSeleccionados(){
+      const checks = document.querySelectorAll(".chk-borrar:checked");
+      if(checks.length === 0){
+        alert("No marcaste ningún pedido.");
+        return;
+      }
+
+      const confirmado = confirm(
+        `Vas a borrar ${checks.length} pedido(s) de forma permanente. Esto no se puede deshacer. ¿Confirmás?`
+      );
+      if(!confirmado) return;
+
+      const { db, doc, deleteDoc } = window.firebaseDb;
+      const btn = $("#borrarSeleccionados");
+      if(btn){ btn.disabled = true; btn.textContent = "Borrando..."; }
+
+      let borrados = 0;
+      for(const chk of checks){
+        const id = chk.dataset.id;
+        try{
+          await deleteDoc(doc(db, "pedidos", id));
+          pedidos = pedidos.filter(p => p.id !== id);
+          borrados++;
+        }catch(err){
+          console.error("No se pudo borrar el pedido " + id + ":", err);
+        }
+      }
+
+      alert(`Listo, se borraron ${borrados} pedido(s).`);
+      render();
+    }
+
+    function actualizarContadorSeleccionados(){
+      const n = document.querySelectorAll(".chk-borrar:checked").length;
+      const el = $("#contadorSeleccionados");
+      if(el) el.textContent = n + " seleccionados";
+    }
+
+    function $$controlesBorrado(){
+      const selTodos = $("#seleccionarTodos");
+      const deselTodos = $("#deseleccionarTodos");
+      const btnBorrar = $("#borrarSeleccionados");
+
+      if(selTodos){
+        selTodos.addEventListener("click", () => {
+          document.querySelectorAll(".chk-borrar").forEach(c => c.checked = true);
+          actualizarContadorSeleccionados();
+        });
+      }
+      if(deselTodos){
+        deselTodos.addEventListener("click", () => {
+          document.querySelectorAll(".chk-borrar").forEach(c => c.checked = false);
+          actualizarContadorSeleccionados();
+        });
+      }
+      if(btnBorrar){
+        btnBorrar.addEventListener("click", borrarSeleccionados);
+      }
+      document.querySelectorAll(".chk-borrar").forEach(c => {
+        c.addEventListener("change", actualizarContadorSeleccionados);
+      });
     }
 
     // Marca el pedido como efectivamente pagado: lo actualiza en
