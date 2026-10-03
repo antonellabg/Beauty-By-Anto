@@ -603,7 +603,7 @@
   </style>
 
   <!-- Firebase (Authentication) -->
-  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="firebase-config-v2.js"></script>
 </head>
 <body>
 
@@ -999,15 +999,31 @@
       fbUpdateProfile = window.firebaseAuth.updateProfile;
       fbSendPasswordResetEmail = window.firebaseAuth.sendPasswordResetEmail;
 
+      // Guarda (o actualiza) el mail de la persona en la colección
+      // "usuarios" de Firestore, para poder mandarle mails más adelante
+      // (recordatorio de carrito, promos, etc.). Se llama tanto en login
+      // como en registro, así quedan guardadas también las cuentas
+      // creadas antes de que existiera esta función.
+      function guardarUsuarioEnFirestore(user){
+        if(!user || !window.firebaseDb) return;
+        const { db, doc, setDoc, serverTimestamp } = window.firebaseDb;
+        setDoc(doc(db, "usuarios", user.uid), {
+          email: user.email || "",
+          nombre: user.displayName || "",
+          ultimoIngreso: serverTimestamp()
+        }, { merge: true }).catch(err => console.error("No se pudo guardar el usuario:", err));
+      }
+
       $("#loginPanel").addEventListener("submit", e => {
         e.preventDefault();
         const email = $("#loginEmail").value.trim().toLowerCase();
         const password = $("#loginPassword").value;
         $("#loginError").classList.remove("show");
         fbSignInWithEmailAndPassword(auth, email, password)
-          .then(() => {
+          .then(cred => {
             $("#loginPanel").reset();
             if(window.trackEvent) trackEvent("login", { method: "email" });
+            guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
             $("#loginError").textContent = authErrorMessage(err);
@@ -1022,10 +1038,11 @@
         const password = $("#regPassword").value;
         $("#registerError").classList.remove("show");
         fbCreateUserWithEmailAndPassword(auth, email, password)
-          .then(cred => fbUpdateProfile(cred.user, { displayName: name }))
-          .then(() => {
+          .then(cred => fbUpdateProfile(cred.user, { displayName: name }).then(() => cred))
+          .then(cred => {
             $("#registerPanel").reset();
             if(window.trackEvent) trackEvent("sign_up", { method: "email" });
+            guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
             $("#registerError").textContent = authErrorMessage(err);
@@ -1052,8 +1069,9 @@
       $("#googleSignInBtn").onclick = () => {
         $("#loginError").classList.remove("show");
         fbSignInWithPopup(auth, googleProvider)
-          .then(() => {
+          .then(cred => {
             if(window.trackEvent) trackEvent("login", { method: "google" });
+            guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
             $("#loginError").textContent = authErrorMessage(err);
