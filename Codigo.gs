@@ -266,7 +266,7 @@ function construirMailPromo_(nombreDestinatario, mensaje){
   const cuerpoPersonalizado = mensaje.replace(/\{nombre\}/g, nombre || "");
   const body = saludo + "\n\n" + cuerpoPersonalizado + "\n\nBeauty By Anto\nLa belleza de encontrarte";
   const htmlBody = emailWrapper_(
-    "<p style=\"margin:0 0 14px;font-family:Georgia,serif;font-size:20px;color:#9c0b5f;\">" + saludo + "</p>" +
+    "<p class=\"bba-pink\" style=\"margin:0 0 14px;font-family:Georgia,serif;font-size:20px;color:#9c0b5f;\">" + saludo + "</p>" +
     parrafosHtml_(cuerpoPersonalizado)
   );
   return { body, htmlBody };
@@ -382,7 +382,7 @@ function enviarPromoATodas(){
 // solo las que apunten a una URL real. Si en algún momento cambiás el
 // logo, subí el archivo nuevo al sitio (mismo lugar que el resto de
 // las imágenes) y actualizá esta línea con el nombre del archivo.
-const LOGO_URL = "https://beauty-by-anto.web.app/logo-mail-v3.png";
+const LOGO_URL = "https://beauty-by-anto.web.app/logo-mail-v4.png";
 
 function listaItemsTexto_(items){
   if(!items || !items.length) return "";
@@ -395,10 +395,10 @@ function listaItemsHtml_(items){
   if(!items || !items.length) return "";
   const filas = items.map(it =>
     "<tr>" +
-      "<td style=\"padding:8px 0;border-bottom:1px solid #ffd6e9;font-size:14px;color:#331420;\">" +
-        it.title + " <span style=\"color:#8a6673;\">x" + it.qty + "</span>" +
+      "<td class=\"bba-ink\" style=\"padding:8px 0;border-bottom:1px solid #ffd6e9;font-size:14px;color:#331420;\">" +
+        it.title + " <span class=\"bba-muted\" style=\"color:#8a6673;\">x" + it.qty + "</span>" +
       "</td>" +
-      "<td style=\"padding:8px 0;border-bottom:1px solid #ffd6e9;font-size:14px;color:#331420;text-align:right;white-space:nowrap;\">" +
+      "<td class=\"bba-ink\" style=\"padding:8px 0;border-bottom:1px solid #ffd6e9;font-size:14px;color:#331420;text-align:right;white-space:nowrap;\">" +
         "$" + Number(it.price * it.qty).toLocaleString("es-AR") +
       "</td>" +
     "</tr>"
@@ -415,7 +415,7 @@ function parrafosHtml_(texto){
     .split(/\n+/)
     .map(p => p.trim())
     .filter(p => p.length > 0)
-    .map(p => "<p style=\"margin:0 0 14px;font-size:15px;line-height:1.6;color:#331420;\">" + p + "</p>")
+    .map(p => "<p class=\"bba-ink\" style=\"margin:0 0 14px;font-size:15px;line-height:1.6;color:#331420;\">" + p + "</p>")
     .join("");
 }
 
@@ -428,19 +428,46 @@ function botonHtml_(texto, url){
 
 // Envoltorio con el diseño de la marca: header rosa con el imagotipo,
 // tarjeta blanca con el contenido, pie de página con el eslogan.
+//
+// OJO con el modo oscuro: la etiqueta <meta name="color-scheme"> no
+// alcanza para la app de Gmail en el celular — la invención de colores
+// la sigue haciendo igual. La técnica que SÍ funciona ahí es apuntar a
+// los atributos [data-ogsc]/[data-ogsb] que Gmail le agrega en secreto
+// a cada elemento que recolorea, y forzar nuestro color de nuevo con
+// !important sobre esos mismos selectores. Por eso cada bloque de color
+// de acá tiene además una clase (bba-header, bba-card, etc.) y hay un
+// <style> al principio con la regla para cada una.
 function emailWrapper_(contenidoHtml){
+  const estilosModoOscuro =
+    "<style>" +
+    "[data-ogsc] .bba-bg, [data-ogsb] .bba-bg{background-color:#fff8fb !important;}" +
+    "[data-ogsc] .bba-header, [data-ogsb] .bba-header{background-color:#f6dfe9 !important;}" +
+    "[data-ogsc] .bba-card, [data-ogsb] .bba-card{background-color:#ffffff !important;}" +
+    "[data-ogsc] .bba-footer, [data-ogsb] .bba-footer{background-color:#fff0f6 !important;}" +
+    "[data-ogsc] .bba-ink, [data-ogsb] .bba-ink{color:#331420 !important;}" +
+    "[data-ogsc] .bba-pink, [data-ogsb] .bba-pink{color:#9c0b5f !important;}" +
+    "[data-ogsc] .bba-muted, [data-ogsb] .bba-muted{color:#8a6673 !important;}" +
+    "</style>";
+
   return (
-    "<!doctype html><html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;padding:0;background:#fff8fb;\">" +
-    "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#fff8fb;padding:28px 12px;\">" +
+    "<!doctype html><html><head><meta charset=\"utf-8\">" +
+    "<meta name=\"color-scheme\" content=\"light\">" +
+    "<meta name=\"supported-color-schemes\" content=\"light\">" +
+    estilosModoOscuro +
+    "</head><body class=\"bba-bg\" bgcolor=\"#fff8fb\" style=\"margin:0;padding:0;background:#fff8fb;background:linear-gradient(#fff8fb,#fff8fb);\">" +
+    "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"bba-bg\" bgcolor=\"#fff8fb\" style=\"background:#fff8fb;background:linear-gradient(#fff8fb,#fff8fb);padding:28px 12px;\">" +
       "<tr><td align=\"center\">" +
-        "<table role=\"presentation\" width=\"100%\" style=\"max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ffd6e9;font-family:Georgia,'Times New Roman',serif;\">" +
-          "<tr><td style=\"background:#f6dfe9;padding:24px;text-align:center;border-bottom:2px solid #c9a24b;\">" +
+        "<table role=\"presentation\" width=\"100%\" class=\"bba-card\" style=\"max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ffd6e9;font-family:Georgia,'Times New Roman',serif;\">" +
+          // El logo ahora es totalmente transparente (sin ningún color
+          // de fondo adentro), así que este bloque ya no necesita pintar
+          // un fondo propio: flota tal cual sobre la tarjeta blanca.
+          "<tr><td style=\"padding:24px;text-align:center;border-bottom:2px solid #c9a24b;\">" +
             "<img src=\"" + LOGO_URL + "\" alt=\"Beauty By Anto\" width=\"260\" style=\"max-width:260px;width:100%;height:auto;display:inline-block;border:0;\">" +
           "</td></tr>" +
-          "<tr><td style=\"padding:28px 26px 10px;\">" + contenidoHtml + "</td></tr>" +
-          "<tr><td style=\"background:#fff0f6;padding:18px 26px;text-align:center;border-top:1px solid #ffd6e9;\">" +
-            "<p style=\"margin:0;color:#9c0b5f;font-size:13px;font-weight:bold;\">Beauty By Anto</p>" +
-            "<p style=\"margin:4px 0 0;color:#8a6673;font-size:12px;font-style:italic;\">La belleza de encontrarte</p>" +
+          "<tr><td class=\"bba-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;background:linear-gradient(#ffffff,#ffffff);padding:28px 26px 10px;\">" + contenidoHtml + "</td></tr>" +
+          "<tr><td class=\"bba-footer\" bgcolor=\"#fff0f6\" style=\"background:#fff0f6;background:linear-gradient(#fff0f6,#fff0f6);padding:18px 26px;text-align:center;border-top:1px solid #ffd6e9;\">" +
+            "<p class=\"bba-pink\" style=\"margin:0;color:#9c0b5f;font-size:13px;font-weight:bold;\">Beauty By Anto</p>" +
+            "<p class=\"bba-muted\" style=\"margin:4px 0 0;color:#8a6673;font-size:12px;font-style:italic;\">La belleza de encontrarte</p>" +
           "</td></tr>" +
         "</table>" +
       "</td></tr>" +
@@ -468,12 +495,12 @@ function enviarMailRecordatorio_(pedido){
     "Beauty By Anto\nLa belleza de encontrarte";
 
   const htmlBody = emailWrapper_(
-    "<p style=\"margin:0 0 4px;font-family:Georgia,serif;font-size:21px;color:#9c0b5f;\">" + saludo + " 🌷</p>" +
-    "<p style=\"margin:0 0 6px;font-size:15px;line-height:1.6;color:#331420;\">Vimos que armaste un pedido y quedó esperándote:</p>" +
+    "<p class=\"bba-pink\" style=\"margin:0 0 4px;font-family:Georgia,serif;font-size:21px;color:#9c0b5f;\">" + saludo + " 🌷</p>" +
+    "<p class=\"bba-ink\" style=\"margin:0 0 6px;font-size:15px;line-height:1.6;color:#331420;\">Vimos que armaste un pedido y quedó esperándote:</p>" +
     listaItemsHtml_(pedido.items) +
-    "<p style=\"margin:10px 0 0;text-align:right;font-size:16px;font-weight:bold;color:#9c0b5f;\">Total: $" + total + "</p>" +
+    "<p class=\"bba-pink\" style=\"margin:10px 0 0;text-align:right;font-size:16px;font-weight:bold;color:#9c0b5f;\">Total: $" + total + "</p>" +
     botonHtml_("Completar mi compra", SHOP_URL) +
-    "<p style=\"margin:18px 0 0;font-size:13px;color:#8a6673;\">Cualquier duda, escribinos por WhatsApp, ¡un gusto ayudarte!</p>"
+    "<p class=\"bba-muted\" style=\"margin:18px 0 0;font-size:13px;color:#8a6673;\">Cualquier duda, escribinos por WhatsApp, ¡un gusto ayudarte!</p>"
   );
 
   MailApp.sendEmail({ to: pedido.clienteEmail, subject, body, htmlBody, name: FROM_NAME });
@@ -498,12 +525,12 @@ function enviarMailAgradecimiento_(pedido){
     "Beauty By Anto\nLa belleza de encontrarte";
 
   const htmlBody = emailWrapper_(
-    "<p style=\"margin:0 0 4px;font-family:Georgia,serif;font-size:21px;color:#9c0b5f;\">" + saludo + " 💖</p>" +
-    "<p style=\"margin:0 0 6px;font-size:15px;line-height:1.6;color:#331420;\">Tu pedido en Beauty By Anto quedó confirmado:</p>" +
+    "<p class=\"bba-pink\" style=\"margin:0 0 4px;font-family:Georgia,serif;font-size:21px;color:#9c0b5f;\">" + saludo + " 💖</p>" +
+    "<p class=\"bba-ink\" style=\"margin:0 0 6px;font-size:15px;line-height:1.6;color:#331420;\">Tu pedido en Beauty By Anto quedó confirmado:</p>" +
     listaItemsHtml_(pedido.items) +
-    "<p style=\"margin:10px 0 0;text-align:right;font-size:16px;font-weight:bold;color:#9c0b5f;\">Total: $" + total + "</p>" +
-    "<p style=\"margin:4px 0 0;text-align:right;font-size:13px;color:#8a6673;\">Método de pago: " + (pedido.metodoPago || "a coordinar") + "</p>" +
-    "<p style=\"margin:20px 0 0;font-size:14px;line-height:1.6;color:#331420;\">En breve nos ponemos en contacto por WhatsApp para coordinar la entrega. ¡Gracias por elegirnos! 🌷</p>"
+    "<p class=\"bba-pink\" style=\"margin:10px 0 0;text-align:right;font-size:16px;font-weight:bold;color:#9c0b5f;\">Total: $" + total + "</p>" +
+    "<p class=\"bba-muted\" style=\"margin:4px 0 0;text-align:right;font-size:13px;color:#8a6673;\">Método de pago: " + (pedido.metodoPago || "a coordinar") + "</p>" +
+    "<p class=\"bba-ink\" style=\"margin:20px 0 0;font-size:14px;line-height:1.6;color:#331420;\">En breve nos ponemos en contacto por WhatsApp para coordinar la entrega. ¡Gracias por elegirnos! 🌷</p>"
   );
 
   MailApp.sendEmail({ to: pedido.clienteEmail, subject, body, htmlBody, name: FROM_NAME });
