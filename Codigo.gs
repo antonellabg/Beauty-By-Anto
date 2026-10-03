@@ -378,12 +378,16 @@ function listaItemsHtml_(items){
   return "<table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;margin:14px 0;\">" + filas + "</table>";
 }
 
-// Convierte texto escrito por Anto (con saltos de línea simples) en
-// párrafos HTML, para el mail de promo.
+// Convierte texto escrito por Anto en párrafos HTML, para el mail de
+// promo. Funciona tanto si dejó una línea en blanco entre ideas (Enter
+// dos veces) como si solo apretó Enter una vez por idea — cualquier
+// salto de línea no vacío se trata como el final de un párrafo.
 function parrafosHtml_(texto){
   return String(texto)
-    .split(/\n{2,}/)
-    .map(p => "<p style=\"margin:0 0 14px;font-size:15px;line-height:1.6;color:#331420;\">" + p.replace(/\n/g, "<br>") + "</p>")
+    .split(/\n+/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
+    .map(p => "<p style=\"margin:0 0 14px;font-size:15px;line-height:1.6;color:#331420;\">" + p + "</p>")
     .join("");
 }
 
