@@ -49,7 +49,8 @@ function onOpen(){
     .createMenu("💌 Beauty By Anto")
     .addItem("✉️ Mandarme una prueba primero", "enviarPromoDePrueba")
     .addItem("📧 Enviar promo a todas las registradas", "enviarPromoATodas")
-    .addItem("🔁 Probar ahora: recordatorios y agradecimientos", "procesarRecordatoriosYAgradecimientosManual")
+    .addItem("🔧 Probar conexión (no manda ningún mail)", "probarConexionFirestore")
+    .addItem("🔁 Correr ahora: recordatorios y agradecimientos (manda mails reales)", "procesarRecordatoriosYAgradecimientosManual")
     .addSeparator()
     .addItem("✅ Activar envío diario automático", "activarTriggerDiario")
     .addItem("⛔ Desactivar envío diario automático", "desactivarTriggerDiario")
@@ -96,6 +97,10 @@ function procesarRecordatoriosYAgradecimientos(){
   pendientesDocs.forEach(doc => {
     const pedido = docToPlano_(doc);
     if(pedido.recordatorioEnviado === true) return;
+    // Si ya está pagado, dejó de ser un carrito abandonado aunque el
+    // estado nunca haya pasado a "confirmado_whatsapp" (por ejemplo, si
+    // Anto lo marcó pagado directo sin que la clienta tocara el botón).
+    if(pedido.pagoConfirmado === true) return;
     if(!pedido.creadoEl) return;
     const creadoEl = pedido.creadoEl instanceof Date ? pedido.creadoEl : new Date(pedido.creadoEl);
     if((ahora - creadoEl) < limiteMs) return; // todavía no pasaron las 48hs
@@ -124,6 +129,33 @@ function procesarRecordatoriosYAgradecimientos(){
 
   Logger.log("Recordatorios enviados: " + recordatoriosEnviados + " — Agradecimientos (red de seguridad): " + agradecimientosEnviados);
   return { recordatoriosEnviados, agradecimientosEnviados };
+}
+
+// Verifica que la credencial de service account funcione, sin mandar
+// ningún mail ni tocar ningún pedido real — solo pide el token y hace
+// una lectura de prueba. Usá este botón para confirmar que todo está
+// bien conectado antes de cerrar las reglas de Firestore, o después de
+// cambiar la clave.
+function probarConexionFirestore(){
+  const ui = SpreadsheetApp.getUi();
+
+  const token = obtenerTokenServiceAccount_();
+  if(!token){
+    ui.alert(
+      "❌ No se pudo obtener el token.\n\n" +
+      "Revisá que SERVICE_ACCOUNT_EMAIL y SERVICE_ACCOUNT_KEY estén bien pegados " +
+      "(sin espacios de más, con el private_key completo). Mirá también Extensiones → " +
+      "Registro de ejecuciones para ver el error exacto."
+    );
+    return;
+  }
+
+  const docs = fsGetAllDocs_("pedidos");
+  ui.alert(
+    "✅ Conexión exitosa.\n\n" +
+    "Se pudo leer la colección de pedidos: " + docs.length + " pedidos encontrados.\n\n" +
+    "No se mandó ningún mail ni se modificó nada — esto fue solo una lectura de prueba."
+  );
 }
 
 function procesarRecordatoriosYAgradecimientosManual(){
@@ -266,7 +298,7 @@ function construirMailPromo_(nombreDestinatario, mensaje){
   const cuerpoPersonalizado = mensaje.replace(/\{nombre\}/g, nombre || "");
   const body = saludo + "\n\n" + cuerpoPersonalizado + "\n\nBeauty By Anto\nLa belleza de encontrarte";
   const htmlBody = emailWrapper_(
-    "<p style=\"margin:0 0 14px;font-family:Georgia,serif;font-size:20px;color:" + COLOR_TITULO + ";\">" + saludo + "</p>" +
+    "<p style=\"margin:0 0 14px;font-family:" + FUENTE_TITULO + ";font-size:20px;color:" + COLOR_TITULO + ";\">" + saludo + "</p>" +
     parrafosHtml_(cuerpoPersonalizado)
   );
   return { body, htmlBody };
@@ -394,12 +426,31 @@ const LOGO_URL = "https://beauty-by-anto.web.app/isotipo-mail.png";
 // técnicas estándar lo evite), pero nunca toca los fondos que YA son
 // oscuros. Si el mail entero arranca oscuro, no queda nada para que
 // Gmail "corrija" — y se ve igual prenda en modo claro y oscuro.
-const COLOR_FONDO = "#4a0e2e";   // vino, fondo de toda la tarjeta
-const COLOR_TEXTO = "#f7e9ef";   // texto principal, crema rosado
-const COLOR_TITULO = "#ff9ec9";  // rosa brillante, para saludos/totales
-const COLOR_MUTED = "#d9a8bd";   // rosa apagado, para texto secundario
-const COLOR_LINEA = "#6b2d4c";   // líneas divisorias sutiles
+// Diseño clarito (blanco + rosa pastel), tal como se ve en la compu.
+// En el celular con modo oscuro, Gmail lo va a oscurecer solo (es su
+// comportamiento automático, no hay forma de evitarlo) — queda
+// aceptado así, sin pelearle más a eso.
+const COLOR_FONDO = "#ffffff";
+const COLOR_TEXTO = "#331420";
+const COLOR_TITULO = "#9c0b5f";
+const COLOR_MUTED = "#8a6673";
+const COLOR_LINEA = "#ffd6e9";
 const COLOR_DORADO = "#c9a24b";
+const COLOR_HEADER = "#f6dfe9";
+const COLOR_HEADER_TEXTO = COLOR_TITULO;
+
+// Tipografías de la marca (las mismas del sitio): Great Vibes para el
+// nombre cursiva, DM Serif Display para saludos/títulos, Libre
+// Baskerville para el cuerpo del texto. Gmail no carga fuentes de
+// Google en la mayoría de los casos, así que esto funciona de verdad
+// en los clientes de mail que sí las soportan (Apple Mail, Outlook
+// nuevo, etc.) y cae en una tipografía serif parecida en los demás —
+// nunca se rompe, solo se ve "la opción B" en los que no las cargan.
+const FUENTE_CURSIVA = "'Great Vibes', 'Brush Script MT', cursive";
+const FUENTE_TITULO = "'DM Serif Display', Georgia, 'Times New Roman', serif";
+const FUENTE_CUERPO = "'Libre Baskerville', Georgia, 'Times New Roman', serif";
+const IMPORT_FUENTES =
+  "<style>@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&display=swap');</style>";
 
 function listaItemsTexto_(items){
   if(!items || !items.length) return "";
@@ -439,7 +490,7 @@ function parrafosHtml_(texto){
 function botonHtml_(texto, url){
   return "<div style=\"text-align:center;margin:22px 0 6px;\">" +
     "<a href=\"" + url + "\" style=\"display:inline-block;background:#ee0f82;color:#ffffff;text-decoration:none;" +
-    "padding:13px 28px;border-radius:999px;font-family:Georgia,serif;font-weight:bold;font-size:14.5px;\">" +
+    "padding:13px 28px;border-radius:999px;font-family:" + FUENTE_TITULO + ";font-weight:bold;font-size:14.5px;\">" +
     texto + "</a></div>";
 }
 
@@ -452,14 +503,17 @@ function emailWrapper_(contenidoHtml){
     "<!doctype html><html><head><meta charset=\"utf-8\">" +
     "<meta name=\"color-scheme\" content=\"light\">" +
     "<meta name=\"supported-color-schemes\" content=\"light\">" +
+    IMPORT_FUENTES +
     "</head><body style=\"margin:0;padding:0;background:" + COLOR_FONDO + ";\">" +
     "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" bgcolor=\"" + COLOR_FONDO + "\" style=\"background:" + COLOR_FONDO + ";padding:28px 12px;\">" +
       "<tr><td align=\"center\">" +
-        "<table role=\"presentation\" width=\"100%\" bgcolor=\"" + COLOR_FONDO + "\" style=\"max-width:480px;background:" + COLOR_FONDO + ";border-radius:16px;overflow:hidden;border:1px solid " + COLOR_LINEA + ";font-family:Georgia,'Times New Roman',serif;\">" +
-          "<tr><td bgcolor=\"" + COLOR_FONDO + "\" style=\"background:" + COLOR_FONDO + ";padding:26px 24px 20px;text-align:center;border-bottom:2px solid " + COLOR_DORADO + ";\">" +
-            "<img src=\"" + LOGO_URL + "\" alt=\"\" width=\"56\" style=\"display:block;width:56px;height:auto;border:0;margin:0 auto 10px;\">" +
-            "<div style=\"font-family:'Brush Script MT',Georgia,'Times New Roman',cursive,serif;font-style:italic;font-size:30px;color:" + COLOR_TITULO + ";line-height:1.1;\">Beauty By Anto</div>" +
-            "<div style=\"font-family:Georgia,serif;font-size:11px;letter-spacing:1.5px;color:" + COLOR_MUTED + ";margin-top:6px;\">LA BELLEZA DE ENCONTRARTE</div>" +
+        "<table role=\"presentation\" width=\"100%\" bgcolor=\"" + COLOR_FONDO + "\" style=\"max-width:480px;background:" + COLOR_FONDO + ";border-radius:16px;overflow:hidden;border:1px solid " + COLOR_LINEA + ";font-family:" + FUENTE_CUERPO + ";\">" +
+          "<tr><td bgcolor=\"" + COLOR_HEADER + "\" align=\"center\" style=\"background:" + COLOR_HEADER + ";padding:26px 24px 20px;text-align:center;border-bottom:2px solid " + COLOR_DORADO + ";\">" +
+            "<table role=\"presentation\" align=\"center\" style=\"margin:0 auto;\"><tr><td align=\"center\" style=\"text-align:center;\">" +
+              "<img src=\"" + LOGO_URL + "\" alt=\"\" width=\"56\" style=\"display:block;width:56px;height:auto;border:0;margin:0 auto 10px;\">" +
+              "<div style=\"font-family:" + FUENTE_CURSIVA + ";font-size:34px;color:" + COLOR_HEADER_TEXTO + ";line-height:1.2;text-align:center;\">Beauty By Anto</div>" +
+              "<div style=\"font-family:" + FUENTE_CUERPO + ";font-size:11px;letter-spacing:1.5px;color:" + COLOR_HEADER_TEXTO + ";margin-top:6px;text-align:center;\">LA BELLEZA DE ENCONTRARTE</div>" +
+            "</td></tr></table>" +
           "</td></tr>" +
           "<tr><td bgcolor=\"" + COLOR_FONDO + "\" style=\"background:" + COLOR_FONDO + ";padding:28px 26px 10px;\">" + contenidoHtml + "</td></tr>" +
           "<tr><td bgcolor=\"" + COLOR_FONDO + "\" style=\"background:" + COLOR_FONDO + ";padding:18px 26px;text-align:center;border-top:1px solid " + COLOR_LINEA + ";\">" +
@@ -492,7 +546,7 @@ function enviarMailRecordatorio_(pedido){
     "Beauty By Anto\nLa belleza de encontrarte";
 
   const htmlBody = emailWrapper_(
-    "<p style=\"margin:0 0 4px;font-family:Georgia,serif;font-size:21px;color:" + COLOR_TITULO + ";\">" + saludo + " 🌷</p>" +
+    "<p style=\"margin:0 0 4px;font-family:" + FUENTE_TITULO + ";font-size:21px;color:" + COLOR_TITULO + ";\">" + saludo + " 🌷</p>" +
     "<p style=\"margin:0 0 6px;font-size:15px;line-height:1.6;color:" + COLOR_TEXTO + ";\">Vimos que armaste un pedido y quedó esperándote:</p>" +
     listaItemsHtml_(pedido.items) +
     "<p style=\"margin:10px 0 0;text-align:right;font-size:16px;font-weight:bold;color:" + COLOR_TITULO + ";\">Total: $" + total + "</p>" +
@@ -522,7 +576,7 @@ function enviarMailAgradecimiento_(pedido){
     "Beauty By Anto\nLa belleza de encontrarte";
 
   const htmlBody = emailWrapper_(
-    "<p style=\"margin:0 0 4px;font-family:Georgia,serif;font-size:21px;color:" + COLOR_TITULO + ";\">" + saludo + " 💖</p>" +
+    "<p style=\"margin:0 0 4px;font-family:" + FUENTE_TITULO + ";font-size:21px;color:" + COLOR_TITULO + ";\">" + saludo + " 💖</p>" +
     "<p style=\"margin:0 0 6px;font-size:15px;line-height:1.6;color:" + COLOR_TEXTO + ";\">Tu pedido en Beauty By Anto quedó confirmado:</p>" +
     listaItemsHtml_(pedido.items) +
     "<p style=\"margin:10px 0 0;text-align:right;font-size:16px;font-weight:bold;color:" + COLOR_TITULO + ";\">Total: $" + total + "</p>" +
@@ -571,6 +625,67 @@ function docToPlano_(doc){
   return Object.assign({ id, path }, fsFieldsToObj_(doc.fields || {}));
 }
 
+/* ---------------------------------------------------------------------
+   Autenticación como "cuenta de servicio" (service account).
+   ---------------------------------------------------------------------
+   Desde que Firestore dejó de ser público, este script ya no puede leer
+   ni escribir pedidos sin credenciales — necesita autenticarse como un
+   "robot" con permiso especial, aparte de las dos cuentas humanas
+   admin. Completá estas dos constantes con los datos del archivo que
+   bajás de Firebase Console (ver guía de Anto):
+
+   ⚠️ SERVICE_ACCOUNT_EMAIL = el valor "client_email" del archivo JSON
+   ⚠️ SERVICE_ACCOUNT_KEY   = el valor "private_key" del archivo JSON,
+      tal cual (con los \n adentro, entre comillas) */
+const SERVICE_ACCOUNT_EMAIL = "PEGA_ACA_EL_client_email_DEL_JSON";
+const SERVICE_ACCOUNT_KEY = "PEGA_ACA_EL_private_key_DEL_JSON";
+
+function obtenerTokenServiceAccount_(){
+  const cache = CacheService.getScriptCache();
+  const cacheado = cache.get("fs_token");
+  if(cacheado) return cacheado;
+
+  const ahora = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const claimSet = {
+    iss: SERVICE_ACCOUNT_EMAIL,
+    scope: "https://www.googleapis.com/auth/datastore",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: ahora + 3600,
+    iat: ahora
+  };
+
+  const base64Header = Utilities.base64EncodeWebSafe(JSON.stringify(header)).replace(/=+$/, "");
+  const base64Claim = Utilities.base64EncodeWebSafe(JSON.stringify(claimSet)).replace(/=+$/, "");
+  const entrada = base64Header + "." + base64Claim;
+  const firmaBytes = Utilities.computeRsaSha256Signature(entrada, SERVICE_ACCOUNT_KEY);
+  const firma = Utilities.base64EncodeWebSafe(firmaBytes).replace(/=+$/, "");
+  const jwt = entrada + "." + firma;
+
+  const resp = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    payload: {
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    },
+    muteHttpExceptions: true
+  });
+
+  if(resp.getResponseCode() >= 300){
+    Logger.log("Error obteniendo token de service account: " + resp.getContentText());
+    return null;
+  }
+
+  const token = JSON.parse(resp.getContentText()).access_token;
+  cache.put("fs_token", token, 3300); // ~55 min, por debajo de la hora real de validez
+  return token;
+}
+
+function authHeaders_(){
+  const token = obtenerTokenServiceAccount_();
+  return token ? { "Authorization": "Bearer " + token } : {};
+}
+
 function fsRunQuery_(collectionId, fieldPath, op, fsValueWrapped){
   const url = FIRESTORE_BASE + ":runQuery";
   const body = {
@@ -583,6 +698,7 @@ function fsRunQuery_(collectionId, fieldPath, op, fsValueWrapped){
   const resp = UrlFetchApp.fetch(url, {
     method: "post",
     contentType: "application/json",
+    headers: authHeaders_(),
     payload: JSON.stringify(body),
     muteHttpExceptions: true
   });
@@ -596,7 +712,7 @@ function fsRunQuery_(collectionId, fieldPath, op, fsValueWrapped){
 
 function fsGetDoc_(path){
   const url = FIRESTORE_BASE + "/" + path;
-  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  const resp = UrlFetchApp.fetch(url, { headers: authHeaders_(), muteHttpExceptions: true });
   if(resp.getResponseCode() >= 300){
     Logger.log("Error GET " + path + ": " + resp.getContentText());
     return null;
@@ -610,7 +726,7 @@ function fsGetAllDocs_(collectionId){
   do{
     let url = FIRESTORE_BASE + "/" + collectionId + "?pageSize=300";
     if(pageToken) url += "&pageToken=" + encodeURIComponent(pageToken);
-    const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const resp = UrlFetchApp.fetch(url, { headers: authHeaders_(), muteHttpExceptions: true });
     if(resp.getResponseCode() >= 300){
       Logger.log("Error GET " + collectionId + ": " + resp.getContentText());
       break;
@@ -630,6 +746,7 @@ function fsPatchFields_(path, fieldsObj){
   const resp = UrlFetchApp.fetch(url, {
     method: "patch",
     contentType: "application/json",
+    headers: authHeaders_(),
     payload: JSON.stringify({ fields }),
     muteHttpExceptions: true
   });

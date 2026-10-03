@@ -649,6 +649,13 @@
       return true;
     }
 
+    // Vacía el carrito guardado (localStorage) una vez que la clienta
+    // confirma el pedido — así, si vuelve a la tienda, no se encuentra
+    // los mismos productos cargados de nuevo.
+    function vaciarCarrito(){
+      localStorage.removeItem("cart");
+    }
+
     // Cuando la clienta efectivamente toca "Confirmar pedido por WhatsApp",
     // dejamos marcado en Firestore que este pedido sí llegó a esa instancia
     // (no solo que abrió la pantalla de pago). OJO: esto significa "dijo
@@ -672,6 +679,7 @@
           `Transferencia bancaria${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
         );
+        vaciarCarrito();
       });
     }
     if(waMpBtn){
@@ -687,6 +695,7 @@
           `Mercado Pago${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
         );
+        vaciarCarrito();
       });
     }
 

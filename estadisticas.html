@@ -162,10 +162,17 @@
       return pedidos.filter(p => withinDays(p.creadoEl, Number(currentFilter)));
     }
 
+    // Un pedido cuenta como "abandonado" solo si nadie lo pagó todavía
+    // — si ya está pagado, dejó de ser un carrito abandonado aunque la
+    // clienta nunca haya tocado "Confirmar por WhatsApp".
+    function estaAbandonado(p){
+      return p.estado === "pendiente" && p.pagoConfirmado !== true;
+    }
+
     function render(){
       const list = filteredPedidos();
       const total = list.length;
-      const abandonados = list.filter(p => p.estado === "pendiente").length;
+      const abandonados = list.filter(estaAbandonado).length;
       const confirmadosWhatsapp = list.filter(p => p.estado === "confirmado_whatsapp").length;
       const pagosVerificados = list.filter(p => p.pagoConfirmado === true).length;
       const tasaAbandono = total > 0 ? Math.round((abandonados / total) * 100) : 0;
@@ -179,8 +186,10 @@
         .slice(0, 50)
         .map(p => {
           const fecha = p.creadoEl ? p.creadoEl.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }) : "—";
-          const estadoTxt = p.estado === "confirmado_whatsapp" ? "Confirmado por WhatsApp" : (p.estado === "pendiente" ? "Abandonado" : (p.estado || "—"));
-          const estadoClass = p.estado === "confirmado_whatsapp" ? "estado-confirmado" : "estado-pendiente";
+          const estadoTxt = p.pagoConfirmado === true
+            ? "Pagado"
+            : (p.estado === "confirmado_whatsapp" ? "Confirmado por WhatsApp" : (estaAbandonado(p) ? "Abandonado" : (p.estado || "—")));
+          const estadoClass = p.pagoConfirmado === true ? "pago-ok" : (p.estado === "confirmado_whatsapp" ? "estado-confirmado" : "estado-pendiente");
           const nombre = p.clienteNombre || p.clienteEmail || "Sin datos";
           const telefono = p.clienteTelefono || "—";
 
