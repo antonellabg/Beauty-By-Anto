@@ -938,7 +938,7 @@
       card.style.cursor = "pointer";
       card.addEventListener("click", (e) => {
         if(e.target.closest("[data-add]")) return;
-        openQuickView(product.id);
+        window.location.href = "producto.html?id=" + product.id;
       });
       if(product.img.length < 2) return;
       const media = card.querySelector(".product-media");

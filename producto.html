@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Todos los productos — Beauty by Anto</title>
-  <meta name="description" content="Catálogo completo de maquillaje y productos de belleza de Beauty by Anto.">
+  <title id="pageTitle">Producto — Beauty by Anto</title>
+  <meta name="description" id="pageDescription" content="Maquillaje y productos de belleza de Beauty by Anto.">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -464,6 +464,27 @@
     .product.out-of-stock .product-media{ opacity:.4; filter:grayscale(.55) brightness(.85); }
     .btn.btn-disabled{ opacity:.5; cursor:not-allowed; pointer-events:none; }
 
+    /* ---------- página de producto individual ---------- */
+    .product-detail-section{ padding:40px 0 70px; }
+    .product-detail-layout{
+      display:grid; grid-template-columns:1fr 1fr; gap:36px; align-items:start;
+      background:var(--white); border-radius:20px; overflow:hidden; box-shadow:var(--shadow);
+      margin-top:18px;
+    }
+    .pd-media{ position:relative; background:var(--blush-100); min-height:420px; }
+    .pd-media img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:none; }
+    .pd-media img.active{ display:block; }
+    .pd-info{ padding:32px 32px 32px 0; display:flex; flex-direction:column; gap:12px; }
+    .pd-info h1{ font-family:var(--font-display); font-size:30px; color:#e46391; }
+    .pd-info .price{ font-size:22px; font-weight:700; color:var(--ink); }
+    .pd-not-found{ text-align:center; padding:70px 0; }
+    .pd-not-found h1{ font-family:var(--font-display); font-size:28px; color:#e46391; margin-bottom:14px; }
+    @media (max-width:760px){
+      .product-detail-layout{ grid-template-columns:1fr; }
+      .pd-media{ min-height:60vw; }
+      .pd-info{ padding:24px; }
+    }
+
     /* ---------- quick view modal ---------- */
     .qv-overlay{
       position:fixed; inset:0; background:rgba(51,20,32,0.45); z-index:300;
@@ -787,48 +808,32 @@
   </div>
 
     <main id="top">
-    <section class="catalog-section">
+    <section class="product-detail-section">
       <div class="container">
-        <a class="catalog-back" href="index.html">‹ Inicio</a>
+        <a class="catalog-back" href="productos.html">‹ Todos los productos</a>
 
-        <div class="catalog-layout">
-          <aside class="catalog-sidebar">
-            <h2 id="catTitle">Productos</h2>
-            <ul class="catalog-cats" id="catList">
-              <li><a href="productos.html?cat=todos" data-cat="todos">Todos los productos</a></li>
-              <li><a href="productos.html?cat=combos" data-cat="combos">Combos</a></li>
-              <li><a href="productos.html?cat=piel" data-cat="piel">Piel</a></li>
-              <li><a href="productos.html?cat=labios" data-cat="labios">Labios</a></li>
-              <li><a href="productos.html?cat=ojos-cejas" data-cat="ojos-cejas">Ojos y cejas</a></li>
-              <li><a href="productos.html?cat=delineadores" data-cat="delineadores">Delineadores</a></li>
-              <li><a href="productos.html?cat=skincare" data-cat="skincare">Skincare</a></li>
-              <li><a href="productos.html?cat=otros" data-cat="otros">Otros</a></li>
-            </ul>
-
-            <div class="catalog-filter-title">Filtrar por precio</div>
-            <div class="catalog-price-row">
-              <div class="catalog-price-field">
-                <label for="priceMin">Desde</label>
-                <input type="number" id="priceMin" min="0" placeholder="0">
-              </div>
-              <div class="catalog-price-field">
-                <label for="priceMax">Hasta</label>
-                <input type="number" id="priceMax" min="0" placeholder="999999">
-              </div>
-              <button class="catalog-price-apply" id="priceApply" aria-label="Aplicar filtro de precio">→</button>
-            </div>
-          </aside>
-
-          <div>
-            <div class="catalog-main-head">
-              <h1 id="catHeading">Todos los productos</h1>
-              <span class="catalog-count" id="catCount"></span>
-            </div>
-            <div class="products-grid" id="productsGrid"></div>
-            <div class="catalog-empty" id="catEmpty" style="display:none">
-              No encontramos productos con esos filtros. Probá con otra categoría o rango de precio.
+        <div id="productDetail" class="product-detail-layout" style="display:none">
+          <div class="pd-media" id="pdMedia">
+            <button class="qv-nav qv-prev" id="pdPrev" aria-label="Foto anterior">‹</button>
+            <button class="qv-nav qv-next" id="pdNext" aria-label="Foto siguiente">›</button>
+            <div class="qv-dots" id="pdDots"></div>
+          </div>
+          <div class="pd-info">
+            <h1 id="pdTitle"></h1>
+            <p class="product-tones" id="pdTones" style="display:none"></p>
+            <p class="qv-desc" id="pdDesc" style="display:none"></p>
+            <p class="stock-badge" id="pdStock" style="display:none">Sin stock</p>
+            <div class="price" id="pdPrice"></div>
+            <div class="actions">
+              <button class="btn btn-primary" id="pdAddBtn">Agregar</button>
+              <a class="btn btn-gold" href="https://wa.me/541136370072" target="_blank" rel="noopener"><svg class="social-ico" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16.004 3C9.377 3 4 8.373 4 15c0 2.31.65 4.47 1.78 6.31L4 29l7.86-1.74A11.94 11.94 0 0 0 16.004 27C22.63 27 28 21.627 28 15S22.63 3 16.004 3Zm7.03 16.94c-.3.84-1.7 1.63-2.35 1.71-.6.08-1.36.12-2.19-.14-.5-.16-1.15-.37-1.98-.73-3.48-1.5-5.75-4.97-5.93-5.2-.17-.23-1.42-1.88-1.42-3.59 0-1.71.9-2.55 1.22-2.9.32-.35.7-.43.93-.43.23 0 .47 0 .67.01.22.01.5-.08.79.6.3.7 1 2.42 1.09 2.6.09.18.15.39.03.63-.12.24-.18.39-.36.6-.18.21-.38.47-.54.63-.18.18-.37.37-.16.72.21.35.93 1.53 2 2.48 1.37 1.22 2.53 1.6 2.88 1.78.35.18.55.15.76-.09.21-.24.9-1.05 1.14-1.41.24-.35.47-.29.79-.17.32.12 2.03.96 2.38 1.13.35.18.58.26.66.41.09.15.09.85-.21 1.69Z"/></svg> Consultar</a>
             </div>
           </div>
+        </div>
+
+        <div id="productNotFound" class="pd-not-found" style="display:none">
+          <h1>No encontramos ese producto</h1>
+          <p><a href="productos.html">Volver al catálogo completo →</a></p>
         </div>
       </div>
     </section>
@@ -863,17 +868,6 @@
   </a>
 
 
-  <div class="qv-overlay" id="qvOverlay" aria-hidden="true">
-    <div class="qv-modal" role="dialog" aria-label="Vista rápida del producto">
-      <button class="qv-close" id="qvClose" aria-label="Cerrar">✕</button>
-      <div class="qv-media" id="qvMedia">
-        <button class="qv-nav qv-prev" id="qvPrev" aria-label="Foto anterior">‹</button>
-        <button class="qv-nav qv-next" id="qvNext" aria-label="Foto siguiente">›</button>
-        <div class="qv-dots" id="qvDots"></div>
-      </div>
-      <div class="qv-info" id="qvInfo"></div>
-    </div>
-  </div>
   <script src="products-data-v13.js"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -906,190 +900,96 @@
     // "tones: true" agrega el aviso de "elegí tu tono al hacer el pedido".
     // PRODUCTS se carga desde products-data.js (ver <script src="products-data.js"> más arriba)
 
-        function priceLabel(p){ return `$${p.price.toLocaleString("es-AR")}`; }
+    function priceLabel(p){ return `$${p.price.toLocaleString("es-AR")}`; }
 
-    function productCardHTML(p){
-      const imgsHTML = p.img.map((src,i) => `<img src="${src}" alt="${p.title}" class="${i===0?'active':''}" data-idx="${i}">`).join("");
-      const tonesHTML = p.tones ? `<span class="product-tones">🎨 Tonos a elegir al hacer tu pedido</span>` : "";
+    /* ---------- página de un solo producto (?id=) ---------- */
+    let pdImgs = [], pdIdx = 0, pdProduct = null;
+
+    function currentProductId(){
+      const params = new URLSearchParams(window.location.search);
+      const id = parseInt(params.get("id"), 10);
+      return isNaN(id) ? null : id;
+    }
+
+    function updatePdNav(){
+      const imgs = [...$("#pdMedia").querySelectorAll("img")];
+      imgs.forEach((im, i) => im.classList.toggle("active", i === pdIdx));
+      [...$("#pdDots").children].forEach((d, i) => d.classList.toggle("active", i === pdIdx));
+      const hasMultiple = pdImgs.length > 1;
+      $("#pdPrev").style.display = hasMultiple ? "flex" : "none";
+      $("#pdNext").style.display = hasMultiple ? "flex" : "none";
+    }
+
+    function renderProductDetail(){
+      const id = currentProductId();
+      const p = id !== null ? PRODUCTS.find(x => x.id === id) : null;
+
+      if(!p){
+        $("#productDetail").style.display = "none";
+        $("#productNotFound").style.display = "block";
+        return;
+      }
+      pdProduct = p;
+      pdImgs = p.img; pdIdx = 0;
+
+      document.title = `${p.title} — Beauty by Anto`;
+      const metaDesc = document.getElementById("pageDescription");
+      if(metaDesc) metaDesc.setAttribute("content", p.desc || `${p.title} — Beauty by Anto, ${priceLabel(p)}.`);
+
+      const media = $("#pdMedia");
+      [...media.querySelectorAll("img")].forEach(im => im.remove());
+      const dots = $("#pdDots");
+      dots.innerHTML = "";
+      pdImgs.forEach((src, i) => {
+        const im = document.createElement("img");
+        im.src = src; im.alt = p.title;
+        if(i === 0) im.classList.add("active");
+        media.insertBefore(im, $("#pdPrev"));
+        const dot = document.createElement("span");
+        if(i === 0) dot.classList.add("active");
+        dots.appendChild(dot);
+      });
+
+      $("#pdTitle").textContent = p.title;
+      $("#pdPrice").textContent = priceLabel(p);
+
+      const tonesEl = $("#pdTones");
+      if(p.tones){
+        tonesEl.textContent = "🎨 Este producto tiene varios tonos: elegí el tuyo cuando hagas tu pedido por WhatsApp.";
+        tonesEl.style.display = "block";
+      }else{
+        tonesEl.style.display = "none";
+      }
+
+      const descEl = $("#pdDesc");
+      if(p.desc){
+        descEl.textContent = p.desc;
+        descEl.style.display = "block";
+      }else{
+        descEl.style.display = "none";
+      }
+
       const outOfStock = (p.stock !== undefined && p.stock <= 0);
-      const stockHTML = outOfStock ? `<span class="stock-badge-media">Sin stock</span>` : "";
-      const addBtnHTML = outOfStock
-        ? `<button class="btn btn-primary btn-disabled" disabled>Sin stock</button>`
-        : `<button class="btn btn-primary" data-add="${p.id}">Agregar</button>`;
-      return `
-          <div class="product-media" data-imgs='${JSON.stringify(p.img)}'>
-            ${stockHTML}
-            ${imgsHTML}
-          </div>
-          <div class="info">
-            <h4>${p.title}</h4>
-            ${tonesHTML}
-            <div class="price">${priceLabel(p)}</div>
-            <div class="actions">
-              <button class="btn-ghost" data-quick="${p.id}">Ver más</button>
-              ${addBtnHTML}
-            </div>
-          </div>`;
-    }
-
-    /* ---------- catálogo: categorías + filtro de precio ---------- */
-    const CAT_LABELS = {
-      todos: "Todos los productos",
-      combos: "Combos",
-      piel: "Piel",
-      labios: "Labios",
-      "ojos-cejas": "Ojos y cejas",
-      delineadores: "Delineadores",
-      skincare: "Skincare",
-      otros: "Otros"
-    };
-
-    function currentCategory(){
-      const params = new URLSearchParams(window.location.search);
-      const cat = params.get("cat") || "todos";
-      return CAT_LABELS[cat] ? cat : "todos";
-    }
-
-    function currentQuery(){
-      const params = new URLSearchParams(window.location.search);
-      return (params.get("q") || "").trim();
-    }
-
-    /* ---------- búsqueda flexible (tolera errores de tipeo) ---------- */
-    function normalizeText(s){
-      return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    }
-
-    function levenshtein(a, b){
-      const m = a.length, n = b.length;
-      if(m === 0) return n;
-      if(n === 0) return m;
-      const dp = Array.from({length:m+1}, () => new Array(n+1).fill(0));
-      for(let i=0;i<=m;i++) dp[i][0] = i;
-      for(let j=0;j<=n;j++) dp[0][j] = j;
-      for(let i=1;i<=m;i++){
-        for(let j=1;j<=n;j++){
-          const cost = a[i-1] === b[j-1] ? 0 : 1;
-          dp[i][j] = Math.min(
-            dp[i-1][j] + 1,
-            dp[i][j-1] + 1,
-            dp[i-1][j-1] + cost
-          );
-        }
+      $("#pdStock").style.display = outOfStock ? "block" : "none";
+      const addBtn = $("#pdAddBtn");
+      addBtn.dataset.add = p.id;
+      if(outOfStock){
+        addBtn.textContent = "Sin stock";
+        addBtn.disabled = true;
+        addBtn.classList.add("btn-disabled");
+      }else{
+        addBtn.textContent = "Agregar";
+        addBtn.disabled = false;
+        addBtn.classList.remove("btn-disabled");
       }
-      return dp[m][n];
+
+      updatePdNav();
+      $("#productDetail").style.display = "grid";
+      $("#productNotFound").style.display = "none";
     }
 
-    function wordsFuzzyMatch(word, target){
-      const shorter = Math.min(word.length, target.length);
-      const longer = Math.max(word.length, target.length);
-      if((target.includes(word) || word.includes(target)) && shorter >= 4 && shorter / longer >= 0.5) return true;
-      const maxDist = word.length <= 4 ? 1 : (word.length <= 8 ? 2 : 3);
-      return levenshtein(word, target) <= maxDist;
-    }
-
-    function productMatchesQuery(product, query){
-      const qNorm = normalizeText(query).trim();
-      if(!qNorm) return false;
-      const titleNorm = normalizeText(product.title);
-      if(titleNorm.includes(qNorm)) return true;
-      const queryTokens = qNorm.split(/[^a-z0-9]+/).filter(Boolean);
-      const titleTokens = titleNorm.split(/[^a-z0-9]+/).filter(Boolean);
-      return queryTokens.every(qt => titleTokens.some(tt => wordsFuzzyMatch(qt, tt)));
-    }
-
-    function productHasCategory(p, cat){
-      if(Array.isArray(p.category)) return p.category.includes(cat);
-      return p.category === cat;
-    }
-
-    function filteredProducts(){
-      const query = currentQuery();
-      if(query){
-        return PRODUCTS.filter(p => productMatchesQuery(p, query));
-      }
-      const cat = currentCategory();
-      const min = parseFloat($("#priceMin").value);
-      const max = parseFloat($("#priceMax").value);
-      return PRODUCTS.filter(p => {
-        if(cat !== "todos" && !productHasCategory(p, cat)) return false;
-        if(!isNaN(min) && p.price < min) return false;
-        if(!isNaN(max) && p.price > max) return false;
-        return true;
-      });
-    }
-
-    function updateCatalogHeader(list){
-      const query = currentQuery();
-      if(query){
-        $("#catHeading").textContent = `Resultados para "${query}"`;
-        $("#catTitle").textContent = "Productos";
-        $("#catCount").textContent = list.length === 1 ? "1 producto encontrado" : `${list.length} productos encontrados`;
-        $$("#catList a").forEach(a => a.classList.remove("active"));
-        return;
-      }
-      const cat = currentCategory();
-      $("#catHeading").textContent = CAT_LABELS[cat];
-      $("#catTitle").textContent = "Productos";
-      $("#catCount").textContent = list.length === 1 ? "1 producto" : `${list.length} productos`;
-      $$("#catList a").forEach(a => a.classList.toggle("active", a.dataset.cat === cat));
-    }
-
-    function renderProducts(){
-      const list = filteredProducts();
-      updateCatalogHeader(list);
-      const grid = $("#productsGrid");
-      const empty = $("#catEmpty");
-      grid.innerHTML = "";
-      if(list.length === 0){
-        empty.textContent = currentQuery()
-          ? "No encontramos productos que coincidan con tu búsqueda. Probá con otra palabra."
-          : "No encontramos productos con esos filtros. Probá con otra categoría o rango de precio.";
-        empty.style.display = "block";
-        return;
-      }
-      empty.style.display = "none";
-      list.forEach(p => {
-        const card = document.createElement("div");
-        const outOfStock = (p.stock !== undefined && p.stock <= 0);
-        card.className = "product" + (outOfStock ? " out-of-stock" : "");
-        card.dataset.id = p.id;
-        card.innerHTML = productCardHTML(p);
-        attachHoverCarousel(card, p);
-        grid.appendChild(card);
-      });
-    }
-
-    $("#priceApply").onclick = renderProducts;
-    [$("#priceMin"), $("#priceMax")].forEach(inp => {
-      inp.addEventListener("keydown", e => { if(e.key === "Enter") renderProducts(); });
-    });
-
-    // Carrusel automático y lento al pasar el cursor por la tarjeta.
-    // Vuelve siempre a la primera imagen y se detiene al sacar el cursor.
-    function attachHoverCarousel(card, product){
-      card.style.cursor = "pointer";
-      card.addEventListener("click", (e) => {
-        if(e.target.closest("[data-add]")) return;
-        window.location.href = "producto.html?id=" + product.id;
-      });
-      if(product.img.length < 2) return;
-      const media = card.querySelector(".product-media");
-      const imgs = [...media.querySelectorAll("img")];
-      let idx = 0, timer = null;
-      const show = i => imgs.forEach((im, n) => im.classList.toggle("active", n === i));
-      card.addEventListener("mouseenter", () => {
-        timer = setInterval(() => {
-          idx = (idx + 1) % imgs.length;
-          show(idx);
-        }, 1400); // ritmo lento
-      });
-      card.addEventListener("mouseleave", () => {
-        clearInterval(timer);
-        idx = 0;
-        show(0);
-      });
-    }
+    $("#pdPrev").onclick = () => { pdIdx = (pdIdx - 1 + pdImgs.length) % pdImgs.length; updatePdNav(); };
+    $("#pdNext").onclick = () => { pdIdx = (pdIdx + 1) % pdImgs.length; updatePdNav(); };
 
     $("#searchBtn").onclick = () => {
       const q = $("#searchInput").value.trim();
@@ -1097,9 +997,6 @@
       window.location.href = "productos.html?q=" + encodeURIComponent(q);
     };
     $("#searchInput").addEventListener("keydown", e => { if(e.key === "Enter") $("#searchBtn").click(); });
-
-    // Si llegamos con ?q=..., mostramos la búsqueda ya escrita en el buscador
-    if(currentQuery()) $("#searchInput").value = currentQuery();
 
     /* ---------- menú móvil (hamburguesa) ---------- */
     const menuToggle = $("#menuToggle");
@@ -1138,71 +1035,6 @@
         productsMenuBtn.setAttribute("aria-expanded","false");
       }
     });
-
-    /* ---------- quick view (vista rápida de producto) ---------- */
-    let qvImgs = [], qvIdx = 0;
-
-    function openQuickView(id){
-      const p = PRODUCTS.find(x => x.id === id);
-      if(!p) return;
-      qvImgs = p.img; qvIdx = 0;
-
-      const media = $("#qvMedia");
-      [...media.querySelectorAll("img")].forEach(im => im.remove());
-      const dots = $("#qvDots");
-      dots.innerHTML = "";
-      qvImgs.forEach((src, i) => {
-        const im = document.createElement("img");
-        im.src = src; im.alt = p.title;
-        if(i === 0) im.classList.add("active");
-        media.insertBefore(im, $("#qvPrev"));
-        const dot = document.createElement("span");
-        if(i === 0) dot.classList.add("active");
-        dots.appendChild(dot);
-      });
-
-      const tonesHTML = p.tones ? `<p class="product-tones">🎨 Este producto tiene varios tonos: elegí el tuyo cuando hagas tu pedido por WhatsApp.</p>` : "";
-      const qvDescHTML = p.desc ? `<p class="qv-desc">${p.desc}</p>` : "";
-      const qvOutOfStock = (p.stock !== undefined && p.stock <= 0);
-      const qvStockHTML = qvOutOfStock ? `<p class="stock-badge">Sin stock</p>` : "";
-      const qvAddBtnHTML = qvOutOfStock
-        ? `<button class="btn btn-primary btn-disabled" disabled>Sin stock</button>`
-        : `<button class="btn btn-primary" data-add="${p.id}">Agregar</button>`;
-      $("#qvInfo").innerHTML = `
-        <h4>${p.title}</h4>
-        ${tonesHTML}
-        ${qvDescHTML}
-        ${qvStockHTML}
-        <div class="price">${priceLabel(p)}</div>
-        <div class="actions">
-          ${qvAddBtnHTML}
-          <a class="btn btn-gold" href="https://wa.me/541136370072" target="_blank" rel="noopener"><svg class="social-ico" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16.004 3C9.377 3 4 8.373 4 15c0 2.31.65 4.47 1.78 6.31L4 29l7.86-1.74A11.94 11.94 0 0 0 16.004 27C22.63 27 28 21.627 28 15S22.63 3 16.004 3Zm7.03 16.94c-.3.84-1.7 1.63-2.35 1.71-.6.08-1.36.12-2.19-.14-.5-.16-1.15-.37-1.98-.73-3.48-1.5-5.75-4.97-5.93-5.2-.17-.23-1.42-1.88-1.42-3.59 0-1.71.9-2.55 1.22-2.9.32-.35.7-.43.93-.43.23 0 .47 0 .67.01.22.01.5-.08.79.6.3.7 1 2.42 1.09 2.6.09.18.15.39.03.63-.12.24-.18.39-.36.6-.18.21-.38.47-.54.63-.18.18-.37.37-.16.72.21.35.93 1.53 2 2.48 1.37 1.22 2.53 1.6 2.88 1.78.35.18.55.15.76-.09.21-.24.9-1.05 1.14-1.41.24-.35.47-.29.79-.17.32.12 2.03.96 2.38 1.13.35.18.58.26.66.41.09.15.09.85-.21 1.69Z"/></svg> Consultar</a>
-        </div>`;
-
-      updateQvNav();
-      $("#qvOverlay").classList.add("open");
-      $("#qvOverlay").setAttribute("aria-hidden","false");
-    }
-
-    function updateQvNav(){
-      const imgs = [...$("#qvMedia").querySelectorAll("img")];
-      imgs.forEach((im, i) => im.classList.toggle("active", i === qvIdx));
-      [...$("#qvDots").children].forEach((d, i) => d.classList.toggle("active", i === qvIdx));
-      const hasMultiple = qvImgs.length > 1;
-      $("#qvPrev").style.display = hasMultiple ? "flex" : "none";
-      $("#qvNext").style.display = hasMultiple ? "flex" : "none";
-    }
-
-    // Dentro del detalle del producto las imágenes SOLO cambian con los
-    // botones (no se mueven solas), así se puede ver bien cada foto.
-    $("#qvPrev").onclick = () => { qvIdx = (qvIdx - 1 + qvImgs.length) % qvImgs.length; updateQvNav(); };
-    $("#qvNext").onclick = () => { qvIdx = (qvIdx + 1) % qvImgs.length; updateQvNav(); };
-    $("#qvClose").onclick = closeQuickView;
-    $("#qvOverlay").onclick = e => { if(e.target.id === "qvOverlay") closeQuickView(); };
-    function closeQuickView(){
-      $("#qvOverlay").classList.remove("open");
-      $("#qvOverlay").setAttribute("aria-hidden","true");
-    }
 
     /* ---------- login / cuenta (Firebase Authentication) ---------- */
     // "auth" y las funciones fb* se completan en initFirebaseAuth(), una vez
@@ -1496,11 +1328,6 @@
     }
 
     function openCart(){
-      const qv = $("#qvOverlay");
-      if(qv && qv.classList.contains("open")){
-        qv.classList.remove("open");
-        qv.setAttribute("aria-hidden","true");
-      }
       $("#cartOverlay").classList.add("open");
       $("#cartOverlay").setAttribute("aria-hidden","false");
     }
@@ -1510,11 +1337,9 @@
       const addId = e.target?.dataset?.add;
       const incId = e.target?.dataset?.inc;
       const decId = e.target?.dataset?.dec;
-      const quickId = e.target?.dataset?.quick;
       if(addId){ addToCart(Number(addId)); openCart(); }
       if(incId) changeQty(Number(incId), 1);
       if(decId) changeQty(Number(decId), -1);
-      if(quickId) openQuickView(Number(quickId));
     });
 
     $("#cartBtn").onclick = openCart;
@@ -1536,15 +1361,15 @@
     window.addEventListener("storage", e => { if(e.key === "cart"){ loadCart(); updateCartUI(); } });
 
     document.addEventListener("DOMContentLoaded", () => {
-      renderProducts();
+      renderProductDetail();
       loadCart();
       updateCartUI();
     });
 
     // Apenas termina de cargarse el stock en vivo (ver firebase-config-v2.js),
-    // volvemos a dibujar la vidriera para que ya se vea actualizado sin que
-    // la clienta tenga que recargar la página.
-    window.addEventListener("stockReady", renderProducts);
+    // volvemos a dibujar la ficha para que ya se vea actualizada (por si
+    // justo se quedó sin stock) sin que la clienta tenga que recargar.
+    window.addEventListener("stockReady", renderProductDetail);
     </script>
 </body>
 </html>
