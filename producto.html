@@ -479,6 +479,28 @@
     .pd-info .price{ font-size:22px; font-weight:700; color:var(--ink); }
     .pd-not-found{ text-align:center; padding:70px 0; }
     .pd-not-found h1{ font-family:var(--font-display); font-size:28px; color:#e46391; margin-bottom:14px; }
+    .pd-media{ cursor:zoom-in; }
+
+    /* ---------- lightbox: foto del producto agrandada ---------- */
+    .lightbox-overlay{
+      position:fixed; inset:0; background:rgba(20,8,13,0.92); z-index:500;
+      display:none; align-items:center; justify-content:center; padding:24px;
+    }
+    .lightbox-overlay.open{ display:flex; }
+    .lightbox-overlay img{
+      max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;
+      cursor:zoom-out;
+    }
+    .lightbox-close{
+      position:absolute; top:18px; right:18px; background:rgba(255,255,255,0.92); border:0;
+      border-radius:50%; width:40px; height:40px; cursor:pointer; font-size:18px; color:var(--fuchsia-dark);
+    }
+    .lightbox-nav{
+      position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px;
+      border-radius:50%; border:0; background:rgba(255,255,255,0.9); cursor:pointer; font-size:20px;
+      color:var(--fuchsia-dark);
+    }
+    .lightbox-prev{ left:16px; } .lightbox-next{ right:16px; }
     @media (max-width:760px){
       .product-detail-layout{ grid-template-columns:1fr; }
       .pd-media{ min-height:60vw; }
@@ -839,6 +861,13 @@
     </section>
   </main>
 
+  <div class="lightbox-overlay" id="lightboxOverlay" aria-hidden="true">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+    <button class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Foto anterior">‹</button>
+    <button class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Foto siguiente">›</button>
+    <img id="lightboxImg" src="" alt="">
+  </div>
+
 
 
   <footer>
@@ -868,7 +897,7 @@
   </a>
 
 
-  <script src="products-data.js?v=16"></script>
+  <script src="products-data.js?v=17"></script>
   <script>
     const $ = s => document.querySelector(s);
     const $$ = s => [...document.querySelectorAll(s)];
@@ -990,6 +1019,51 @@
 
     $("#pdPrev").onclick = () => { pdIdx = (pdIdx - 1 + pdImgs.length) % pdImgs.length; updatePdNav(); };
     $("#pdNext").onclick = () => { pdIdx = (pdIdx + 1) % pdImgs.length; updatePdNav(); };
+
+    /* ---------- lightbox: agrandar la foto tocándola ---------- */
+    function openLightbox(){
+      if(!pdImgs.length) return;
+      $("#lightboxImg").src = pdImgs[pdIdx];
+      $("#lightboxImg").alt = pdProduct ? pdProduct.title : "";
+      const hasMultiple = pdImgs.length > 1;
+      $("#lightboxPrev").style.display = hasMultiple ? "flex" : "none";
+      $("#lightboxNext").style.display = hasMultiple ? "flex" : "none";
+      $("#lightboxOverlay").classList.add("open");
+      $("#lightboxOverlay").setAttribute("aria-hidden","false");
+    }
+    function closeLightbox(){
+      $("#lightboxOverlay").classList.remove("open");
+      $("#lightboxOverlay").setAttribute("aria-hidden","true");
+    }
+    function lightboxShow(i){
+      pdIdx = i;
+      updatePdNav();
+      $("#lightboxImg").src = pdImgs[pdIdx];
+    }
+    $("#pdMedia").addEventListener("click", (e) => {
+      // No abrir si tocó una de las flechas de navegación de la foto.
+      if(e.target.closest("#pdPrev, #pdNext")) return;
+      openLightbox();
+    });
+    $("#lightboxImg").addEventListener("click", closeLightbox);
+    $("#lightboxClose").addEventListener("click", closeLightbox);
+    $("#lightboxOverlay").addEventListener("click", (e) => {
+      if(e.target.id === "lightboxOverlay") closeLightbox();
+    });
+    $("#lightboxPrev").addEventListener("click", (e) => {
+      e.stopPropagation();
+      lightboxShow((pdIdx - 1 + pdImgs.length) % pdImgs.length);
+    });
+    $("#lightboxNext").addEventListener("click", (e) => {
+      e.stopPropagation();
+      lightboxShow((pdIdx + 1) % pdImgs.length);
+    });
+    document.addEventListener("keydown", (e) => {
+      if(!$("#lightboxOverlay").classList.contains("open")) return;
+      if(e.key === "Escape") closeLightbox();
+      if(e.key === "ArrowLeft") lightboxShow((pdIdx - 1 + pdImgs.length) % pdImgs.length);
+      if(e.key === "ArrowRight") lightboxShow((pdIdx + 1) % pdImgs.length);
+    });
 
     $("#searchBtn").onclick = () => {
       const q = $("#searchInput").value.trim();
