@@ -541,6 +541,11 @@
           creadoEl: serverTimestamp()
         });
         sendNtfyNotification("Nuevo pedido iniciado", "shopping_bags", buildResumenTexto(session), orderDocRef.id);
+        // Guardamos el id de este pedido para poder chequear más
+        // adelante (la próxima vez que entre al sitio, sea cuando sea)
+        // si ya lo marcaste como pagado, y vaciarle el carrito en ese
+        // momento — ver firebase-config.js.
+        localStorage.setItem("pedidoActivo", orderDocRef.id);
       }catch(err){
         console.error("No se pudo guardar el pedido en Firestore:", err);
       }
@@ -738,6 +743,9 @@
        Mercado Pago. Para cobrar automáticamente el monto exacto de cada
        pedido hace falta integrar Checkout Pro con un servidor propio. */
     $("#mpPayBtn").href = "https://link.mercadopago.com.ar/beautybyanto";
+    $("#mpPayBtn").addEventListener("click", () => {
+      vaciarCarrito();
+    });
   </script>
 </body>
 </html>

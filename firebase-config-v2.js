@@ -106,6 +106,29 @@ window.firebaseDb = {
   serverTimestamp
 };
 
+// Si quedó guardado el id de un pedido (se guarda apenas se crea, en
+// metodos-pago.html), chequeamos acá — en CUALQUIER página del sitio,
+// apenas carga — si ya se marcó como pagado. Si es así, vaciamos el
+// carrito recién en este momento: es la única forma de "avisarle" al
+// navegador de la clienta que Anto confirmó el pago, ya que eso pasa
+// en un dispositivo totalmente distinto (el de Anto), en otro momento.
+(async function revisarPedidoActivo(){
+  const pedidoId = localStorage.getItem("pedidoActivo");
+  if(!pedidoId) return;
+  try{
+    const snap = await getDoc(doc(db, "pedidos", pedidoId));
+    if(snap.exists() && snap.data().pagoConfirmado === true){
+      localStorage.removeItem("cart");
+      localStorage.removeItem("pedidoActivo");
+    }
+  }catch(err){
+    // Si falla (por ejemplo, sin conexión en ese momento), no pasa
+    // nada grave — simplemente se vuelve a intentar la próxima vez
+    // que cargue una página del sitio.
+    console.error("No se pudo revisar el estado del pedido activo:", err);
+  }
+})();
+
 // Como este archivo se carga como <script type="module">, se ejecuta en
 // forma diferida (después de parsear el HTML) y en un momento distinto al
 // del resto de los scripts de la página. Avisamos con un evento cuando
