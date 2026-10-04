@@ -822,7 +822,7 @@
       <div class="qv-info" id="qvInfo"></div>
     </div>
   </div>
-  <script src="products-data-v13.js"></script>
+  <script src="products-data-v14.js"></script>
   <script>
     const $ = s => document.querySelector(s);
     const $$ = s => [...document.querySelectorAll(s)];
@@ -895,7 +895,7 @@
             ${tonesHTML}
             <div class="price">${priceLabel(p)}</div>
             <div class="actions">
-              <button class="btn-ghost" data-quick="${p.id}">Ver más</button>
+              <button class="btn-ghost">Ver más</button>
               ${addBtnHTML}
             </div>
           </div>`;
@@ -1374,11 +1374,9 @@
       const addId = e.target?.dataset?.add;
       const incId = e.target?.dataset?.inc;
       const decId = e.target?.dataset?.dec;
-      const quickId = e.target?.dataset?.quick;
       if(addId){ addToCart(Number(addId)); openCart(); }
       if(incId) changeQty(Number(incId), 1);
       if(decId) changeQty(Number(decId), -1);
-      if(quickId) openQuickView(Number(quickId));
     });
 
     $("#cartBtn").onclick = openCart;
