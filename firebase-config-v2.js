@@ -106,6 +106,33 @@ window.firebaseDb = {
   serverTimestamp
 };
 
+// Stock en vivo: vive en la colección "stock" de Firestore (un documento
+// por producto, con el id del catálogo como id del documento y un campo
+// "cantidad"). Esto permite que Anto lo suba o baje desde stock.html sin
+// tener que subir un products-data.js nuevo a GitHub cada vez. Acá lo
+// mezclamos con el catálogo estático apenas carga cualquier página que
+// muestre productos — mutamos los objetos de window.PRODUCTS en el lugar
+// (no reemplazamos el array) para que el resto del código, que ya tiene
+// referencias a esos mismos objetos, vea el cambio sin tocar nada más.
+(async function aplicarStockEnVivo(){
+  if(!window.PRODUCTS) return;
+  try{
+    const snap = await getDocs(collection(db, "stock"));
+    snap.forEach(docSnap => {
+      const producto = window.PRODUCTS.find(p => String(p.id) === docSnap.id);
+      const datos = docSnap.data();
+      if(producto && typeof datos.cantidad === "number"){
+        producto.stock = datos.cantidad;
+      }
+    });
+  }catch(err){
+    // Si falla (sin conexión, por ejemplo), seguimos con el stock del
+    // catálogo estático — no es ideal, pero no rompe la página.
+    console.error("No se pudo cargar el stock en vivo:", err);
+  }
+  window.dispatchEvent(new Event("stockReady"));
+})();
+
 // Si quedó guardado el id de un pedido (se guarda apenas se crea, en
 // metodos-pago.html), chequeamos acá — en CUALQUIER página del sitio,
 // apenas carga — si ya se marcó como pagado. Si es así, vaciamos el

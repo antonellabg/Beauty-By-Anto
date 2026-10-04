@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Stock — Beauty by Anto</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --cream:#fff8fb;
+      --blush-100:#ffd6e9;
+      --blush-200:#ffbbdc;
+      --pink-300:#ff94bd;
+      --pink-400:#f26c92;
+      --fuchsia:#ee0f82;
+      --fuchsia-dark:#9c0b5f;
+      --gold:#c9a24b;
+      --gold-light:#e8cd8a;
+      --ink:#331420;
+      --muted:#8a6673;
+      --white:#ffffff;
+      --radius:16px;
+      --shadow:0 14px 40px rgba(238,15,130,0.12);
+      --shadow-sm:0 6px 18px rgba(51,20,32,0.08);
+      --font-title:"Great Vibes", cursive;
+      --font-display:"DM Serif Display", serif;
+      --font-body:"Libre Baskerville", Georgia, serif;
+    }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    body{
+      font-family:var(--font-body); color:var(--ink); background:var(--cream);
+      line-height:1.5; -webkit-font-smoothing:antialiased; padding:28px 18px 60px;
+    }
+    .wrap{ max-width:960px; margin:0 auto; }
+    h1{
+      font-family:var(--font-title); font-size:clamp(38px,7vw,56px); color:var(--fuchsia-dark);
+      text-align:center; margin-bottom:4px;
+    }
+    .subtitle{ text-align:center; color:var(--muted); font-size:14px; margin-bottom:30px; }
+
+    .ga-note{
+      background:var(--white); border:1px solid var(--blush-200); border-radius:var(--radius);
+      padding:16px 18px; margin-bottom:28px; box-shadow:var(--shadow-sm); font-size:14px;
+    }
+    .ga-note strong{ color:var(--fuchsia-dark); }
+
+    .filters{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+    .filters input[type="search"]{
+      font-family:var(--font-body); font-size:13.5px; padding:8px 14px; border-radius:999px;
+      border:1px solid var(--blush-200); background:var(--white); color:var(--ink);
+      flex:1; min-width:180px;
+    }
+    .filters button{
+      font-family:var(--font-body); font-size:13px; padding:7px 14px; border-radius:999px;
+      border:1px solid var(--blush-200); background:var(--white); color:var(--ink); cursor:pointer;
+    }
+    .filters button.active{ background:var(--pink-400); color:var(--white); border-color:var(--pink-400); }
+
+    table{ width:100%; border-collapse:collapse; background:var(--white); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm); }
+    th, td{ text-align:left; padding:10px 12px; font-size:13.5px; border-bottom:1px solid var(--blush-100); vertical-align:middle; }
+    th{ background:var(--blush-100); color:var(--fuchsia-dark); font-weight:700; }
+    tr:last-child td{ border-bottom:none; }
+
+    .sin-stock{ color:#c0392b; font-weight:600; }
+    .con-stock{ color:#2a9d5c; font-weight:600; }
+
+    .stock-controls{ display:flex; align-items:center; gap:6px; }
+    .stock-controls button{
+      font-family:var(--font-body); font-size:16px; font-weight:700; width:28px; height:28px;
+      border-radius:50%; border:1px solid var(--blush-200); background:var(--white); color:var(--fuchsia-dark);
+      cursor:pointer; line-height:1;
+    }
+    .stock-controls button:hover{ background:var(--blush-100); }
+    .stock-controls input{
+      width:56px; text-align:center; font-family:var(--font-body); font-size:14px;
+      padding:5px 2px; border-radius:8px; border:1px solid var(--blush-200);
+    }
+    .guardando{ font-size:12px; color:var(--muted); margin-left:4px; }
+    .guardado{ font-size:12px; color:#2a9d5c; margin-left:4px; }
+
+    .loading, .empty{ text-align:center; color:var(--muted); padding:30px 0; font-size:14px; }
+    .err{ color:#c0392b; text-align:center; padding:20px 0; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Stock</h1>
+    <p class="subtitle">Beauty by Anto — panel interno</p>
+
+    <div class="ga-note">
+      <strong>Esto cambia el stock al instante</strong> en la página — no hace falta subir nada a GitHub.
+      El número que subas o bajes acá es el que ven (indirectamente) tus clientas: cuando llega a 0, el
+      producto se muestra como "Sin stock" en la tienda.
+    </div>
+
+    <div class="filters">
+      <input type="search" id="buscador" placeholder="Buscar por nombre…">
+      <button class="active" data-filtro="todos">Todos</button>
+      <button data-filtro="sinstock">Sin stock</button>
+    </div>
+
+    <div id="content">
+      <p class="loading">Cargando catálogo…</p>
+    </div>
+  </div>
+
+  <script src="products-data.js"></script>
+  <script type="module" src="firebase-config-v2.js"></script>
+  <script>
+    const $ = s => document.querySelector(s);
+    let filtro = "todos";
+    let busqueda = "";
+    // Guardamos acá los valores ya confirmados en Firestore para cada
+    // producto, para no pisar lo que la clienta ve en pantalla mientras
+    // escribe, y para saber si hace falta guardar o no.
+    const stockGuardado = {};
+
+    function render(){
+      const content = $("#content");
+      if(!window.PRODUCTS){
+        content.innerHTML = `<p class="err">No se pudo cargar el catálogo (products-data.js).</p>`;
+        return;
+      }
+      let lista = window.PRODUCTS.slice();
+      if(filtro === "sinstock") lista = lista.filter(p => (p.stock || 0) <= 0);
+      if(busqueda.trim()){
+        const q = busqueda.trim().toLowerCase();
+        lista = lista.filter(p => (p.title || "").toLowerCase().includes(q));
+      }
+      lista.sort((a, b) => (a.title || "").localeCompare(b.title || "", "es"));
+
+      if(lista.length === 0){
+        content.innerHTML = `<p class="empty">No hay productos que coincidan con la búsqueda.</p>`;
+        return;
+      }
+
+      const filas = lista.map(p => {
+        const stock = p.stock || 0;
+        const claseEstado = stock <= 0 ? "sin-stock" : "con-stock";
+        const textoEstado = stock <= 0 ? "Sin stock" : "Con stock";
+        return `<tr data-id="${p.id}">
+          <td>${p.title || "—"}</td>
+          <td>${p.category || "—"}</td>
+          <td class="${claseEstado}" data-estado>${textoEstado}</td>
+          <td>
+            <div class="stock-controls">
+              <button type="button" data-restar>−</button>
+              <input type="number" min="0" step="1" value="${stock}" data-input>
+              <button type="button" data-sumar>+</button>
+              <span class="guardando" data-estado-guardado style="display:none;">Guardando…</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join("");
+
+      content.innerHTML = `<table>
+        <thead><tr><th>Producto</th><th>Categoría</th><th>Estado</th><th>Stock</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>`;
+
+      content.querySelectorAll("tr[data-id]").forEach(fila => {
+        const id = fila.dataset.id;
+        const input = fila.querySelector("[data-input]");
+        const restar = fila.querySelector("[data-restar]");
+        const sumar = fila.querySelector("[data-sumar]");
+
+        restar.addEventListener("click", () => {
+          input.value = Math.max(0, (parseInt(input.value, 10) || 0) - 1);
+          guardarStock(id, fila);
+        });
+        sumar.addEventListener("click", () => {
+          input.value = (parseInt(input.value, 10) || 0) + 1;
+          guardarStock(id, fila);
+        });
+        input.addEventListener("change", () => {
+          if(input.value === "" || parseInt(input.value, 10) < 0) input.value = 0;
+          guardarStock(id, fila);
+        });
+      });
+    }
+
+    async function guardarStock(id, fila){
+      if(!window.firebaseDb) return;
+      const { db, doc, setDoc } = window.firebaseDb;
+      const input = fila.querySelector("[data-input]");
+      const estadoEl = fila.querySelector("[data-estado]");
+      const guardandoEl = fila.querySelector("[data-estado-guardado]");
+      const nuevoStock = Math.max(0, parseInt(input.value, 10) || 0);
+
+      // Actualizamos ya mismo el producto en memoria (así, si guarda
+      // justo cuando se dispara el filtro "Sin stock", se ve correcto).
+      const producto = window.PRODUCTS.find(p => String(p.id) === String(id));
+      if(producto) producto.stock = nuevoStock;
+      estadoEl.textContent = nuevoStock <= 0 ? "Sin stock" : "Con stock";
+      estadoEl.className = nuevoStock <= 0 ? "sin-stock" : "con-stock";
+
+      guardandoEl.style.display = "inline";
+      guardandoEl.textContent = "Guardando…";
+      guardandoEl.className = "guardando";
+      try{
+        await setDoc(doc(db, "stock", String(id)), { cantidad: nuevoStock });
+        stockGuardado[id] = nuevoStock;
+        guardandoEl.textContent = "Guardado ✓";
+        guardandoEl.className = "guardado";
+        setTimeout(() => { guardandoEl.style.display = "none"; }, 1500);
+      }catch(err){
+        console.error("No se pudo guardar el stock:", err);
+        guardandoEl.textContent = "Error al guardar";
+        guardandoEl.className = "guardando";
+      }
+    }
+
+    // La primera vez que se abre esta pantalla, puede haber productos que
+    // todavía no tienen un documento en Firestore (porque nunca se tocaron
+    // acá). Para esos, migramos su stock inicial desde products-data.js a
+    // Firestore, así quedan editables desde ahora en más.
+    async function migrarStockFaltante(){
+      if(!window.firebaseDb || !window.PRODUCTS) return;
+      const { db, collection, getDocs, doc, setDoc } = window.firebaseDb;
+      try{
+        const snap = await getDocs(collection(db, "stock"));
+        const yaExisten = new Set();
+        snap.forEach(d => yaExisten.add(d.id));
+        const faltantes = window.PRODUCTS.filter(p => !yaExisten.has(String(p.id)));
+        for(const p of faltantes){
+          await setDoc(doc(db, "stock", String(p.id)), { cantidad: p.stock || 0 });
+        }
+      }catch(err){
+        console.error("No se pudo migrar el stock inicial:", err);
+      }
+    }
+
+    async function init(){
+      await migrarStockFaltante();
+      render();
+    }
+
+    $("#buscador").addEventListener("input", e => {
+      busqueda = e.target.value;
+      render();
+    });
+    document.querySelectorAll(".filters button[data-filtro]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        filtro = btn.dataset.filtro;
+        document.querySelectorAll(".filters button[data-filtro]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        render();
+      });
+    });
+
+    if(window.firebaseDb){
+      init();
+    }else{
+      window.addEventListener("firebaseReady", init, { once:true });
+    }
+  </script>
+</body>
+</html>

@@ -1540,6 +1540,11 @@
       loadCart();
       updateCartUI();
     });
+
+    // Apenas termina de cargarse el stock en vivo (ver firebase-config-v2.js),
+    // volvemos a dibujar la vidriera para que ya se vea actualizado sin que
+    // la clienta tenga que recargar la página.
+    window.addEventListener("stockReady", renderProducts);
     </script>
 </body>
 </html>
