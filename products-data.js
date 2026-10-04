@@ -18,7 +18,7 @@ const PRODUCTS = [
         ],
         tones:false,
         isNew:false,
-        desc:"Una forma práctica y personalizable de sumar skincare a tu rutina. Se expande al entrar en contacto con agua, tónico o sérum y se adapta al rostro para potenciar la aplicación de tus productos. Ayuda a mantener la piel hidratada, suave y fresca. 💗"
+        desc:"Una forma práctica y personalizable de sumar skincare a tu rutina. Se expande al entrar en contacto con agua, tónico o sérum y se adapta al rostro para potenciar la aplicación de tus productos. Ayuda a mantener la piel hidratada, suave y fresca. 💗 Por su formato compacto, es ideal para llevar a donde quieras y usar solo la cantidad de producto que necesitás, ¡sin gastar de más! ✨"
       },
       {
         id:36,
