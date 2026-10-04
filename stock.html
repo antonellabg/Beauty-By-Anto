@@ -84,12 +84,21 @@
 
     .loading, .empty{ text-align:center; color:var(--muted); padding:30px 0; font-size:14px; }
     .err{ color:#c0392b; text-align:center; padding:20px 0; font-size:14px; }
+
+    .sesion-nota{
+      background:var(--white); border:1px solid var(--blush-200); border-radius:var(--radius);
+      padding:12px 18px; margin-bottom:18px; box-shadow:var(--shadow-sm); font-size:13.5px;
+    }
+    .sesion-nota.ok{ border-color:#2a9d5c; color:#1f7a44; }
+    .sesion-nota.mal{ border-color:#c0392b; color:#c0392b; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Stock</h1>
     <p class="subtitle">Beauty by Anto — panel interno</p>
+
+    <div id="sesionNota" class="sesion-nota">Revisando si estás identificada como admin…</div>
 
     <div class="ga-note">
       <strong>Esto cambia el stock al instante</strong> en la página — no hace falta subir nada a GitHub.
@@ -108,7 +117,7 @@
     </div>
   </div>
 
-  <script src="products-data.js"></script>
+  <script src="products-data-v13.js"></script>
   <script type="module" src="firebase-config-v2.js"></script>
   <script>
     const $ = s => document.querySelector(s);
