@@ -345,8 +345,12 @@
     // se guardó antes de que empezáramos a guardar el id de cada
     // producto, ese descuento puntual no se aplica — pero no bloqueamos
     // el marcado como pagado por eso.
+    // Devuelve la lista de ids que NO se pudieron descontar (vacía si
+    // salió todo bien), para poder avisarle a Anto en la pantalla misma
+    // en vez de que el error quede escondido solo en la consola.
     async function descontarStockDelPedido(pedido){
-      if(!window.firebaseDb) return;
+      const fallidos = [];
+      if(!window.firebaseDb) return fallidos;
       const { db, doc, updateDoc, increment } = window.firebaseDb;
       for(const item of (pedido.items || [])){
         if(item.id === undefined || item.id === null) continue;
@@ -354,8 +358,10 @@
           await updateDoc(doc(db, "stock", String(item.id)), { cantidad: increment(-(item.qty || 1)) });
         }catch(err){
           console.error("No se pudo descontar stock de " + item.id, err);
+          fallidos.push(item.id);
         }
       }
+      return fallidos;
     }
 
     async function marcarComoPagado(pedido, btn){
@@ -371,26 +377,48 @@
           pagoConfirmadoEl: serverTimestamp()
         });
 
-        await descontarStockDelPedido(pedido);
+        const stockFallido = await descontarStockDelPedido(pedido);
 
+        let mailFalló = false;
         if(MAILING_WEBAPP_URL){
-          fetch(MAILING_WEBAPP_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-              tipo: "agradecimiento",
-              pedidoId: pedido.id,
-              clienteEmail: pedido.clienteEmail || "",
-              clienteNombre: pedido.clienteNombre || "",
-              items: pedido.items || [],
-              total: pedido.total || 0,
-              metodoPago: pedido.metodoPago || ""
-            })
-          }).catch(err => console.error("No se pudo avisar al Web App de mailing:", err));
+          try{
+            // mode: "no-cors" porque no necesitamos leer la respuesta,
+            // solo que el aviso llegue — así, si Apps Script no manda
+            // los encabezados de CORS (algo común y fuera de nuestro
+            // control), el navegador no nos hace creer que falló cuando
+            // en realidad el mail sí se mandó del otro lado.
+            await fetch(MAILING_WEBAPP_URL, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify({
+                tipo: "agradecimiento",
+                pedidoId: pedido.id,
+                clienteEmail: pedido.clienteEmail || "",
+                clienteNombre: pedido.clienteNombre || "",
+                items: pedido.items || [],
+                total: pedido.total || 0,
+                metodoPago: pedido.metodoPago || ""
+              })
+            });
+          }catch(err){
+            console.error("No se pudo avisar al Web App de mailing:", err);
+            mailFalló = true;
+          }
         }
 
         pedido.pagoConfirmado = true;
         render();
+
+        // Avisamos en la pantalla misma si algo no salió perfecto —
+        // el pedido ya quedó marcado como pagado igual, esto es solo
+        // para que Anto sepa si hay que revisar algo a mano.
+        if(stockFallido.length > 0 || mailFalló){
+          const avisos = [];
+          if(stockFallido.length > 0) avisos.push("no se pudo descontar el stock de: " + stockFallido.join(", "));
+          if(mailFalló) avisos.push("no se pudo avisar al mailing (el mail de agradecimiento puede no haber salido al instante — igual debería llegar en la red de seguridad diaria)");
+          alert("Pedido marcado como pagado, pero ojo: " + avisos.join(" | "));
+        }
       }catch(err){
         console.error("No se pudo marcar el pedido como pagado:", err);
         btn.disabled = false;

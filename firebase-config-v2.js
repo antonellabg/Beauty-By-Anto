@@ -29,7 +29,8 @@ import {
   query,
   where,
   increment,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 // Configuración de tu proyecto
@@ -103,7 +104,8 @@ window.firebaseDb = {
   query,
   where,
   increment,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 };
 
 // Stock en vivo: vive en la colección "stock" de Firestore (un documento
@@ -139,6 +141,42 @@ window.firebaseDb = {
 // carrito recién en este momento: es la única forma de "avisarle" al
 // navegador de la clienta que Anto confirmó el pago, ya que eso pasa
 // en un dispositivo totalmente distinto (el de Anto), en otro momento.
+// Cartel flotante de "pago confirmado" — se arma con estilos propios en
+// JS (no depende del CSS de cada página) para poder aparecer en
+// cualquiera de ellas sin tener que tocar los 7 archivos HTML.
+function mostrarCartelPagoConfirmado(){
+  const el = document.createElement("div");
+  el.setAttribute("role", "status");
+  el.style.cssText = [
+    "position:fixed", "left:50%", "bottom:18px", "transform:translateX(-50%)",
+    "z-index:99999", "max-width:min(92vw,420px)", "background:#ffffff",
+    "border:1px solid #ffd6e9", "border-radius:16px",
+    "box-shadow:0 14px 40px rgba(238,15,130,0.18)", "padding:16px 44px 16px 18px",
+    "font-family:Georgia,serif", "font-size:14px", "line-height:1.5",
+    "color:#331420"
+  ].join(";");
+  el.innerHTML =
+    '<strong style="color:#9c0b5f;">¡Confirmamos tu pago! 💖</strong><br>' +
+    'Gracias por tu compra — ya estamos coordinando tu entrega por WhatsApp.';
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "✕";
+  closeBtn.setAttribute("aria-label", "Cerrar");
+  closeBtn.style.cssText = [
+    "position:absolute", "top:10px", "right:12px", "border:0", "background:transparent",
+    "color:#9c0b5f", "font-size:15px", "cursor:pointer", "line-height:1"
+  ].join(";");
+  closeBtn.onclick = () => el.remove();
+  el.appendChild(closeBtn);
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 15000);
+}
+
+// Si quedó guardado el id de un pedido (se guarda apenas se crea, en
+// metodos-pago.html), chequeamos acá — en CUALQUIER página del sitio,
+// apenas carga, sea cuando sea que la clienta vuelva — si ya se marcó
+// como pagado. No hace falta que haya dejado ninguna pestaña abierta:
+// esto se fija de nuevo la próxima vez que abra el sitio, pase lo que
+// pase mientras tanto.
 (async function revisarPedidoActivo(){
   const pedidoId = localStorage.getItem("pedidoActivo");
   if(!pedidoId) return;
@@ -147,6 +185,10 @@ window.firebaseDb = {
     if(snap.exists() && snap.data().pagoConfirmado === true){
       localStorage.removeItem("cart");
       localStorage.removeItem("pedidoActivo");
+      // Esperamos a que el body exista antes de insertar el cartel,
+      // por si este script corre antes de que termine de parsear el HTML.
+      if(document.body) mostrarCartelPagoConfirmado();
+      else document.addEventListener("DOMContentLoaded", mostrarCartelPagoConfirmado, { once:true });
     }
   }catch(err){
     // Si falla (por ejemplo, sin conexión en ese momento), no pasa
