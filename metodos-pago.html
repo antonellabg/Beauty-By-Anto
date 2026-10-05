@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Métodos de pago — Beauty by Anto</title>
-  <script type="module" src="firebase-config-v2.js"></script>
+  <script type="module" src="firebase-config-v2.js?v=2"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -248,17 +248,19 @@
         <p class="shipping-note">*El costo de envío no está incluido en el total de arriba — se confirma por WhatsApp según la zona que elijas, antes de que hagas el pago. Los retiros son en Villa Devoto, CP 1419 (CABA).</p>
       </div>
 
-      <!-- Confirmación visual, aparece recién al tocar "Confirmar pedido por WhatsApp" -->
+      <!-- Confirmación visual, aparece recién al tocar "Confirmar pedido por WhatsApp".
+           Su contenido cambia solo (en vivo, sin recargar) apenas Anto marca el
+           pedido como pagado de verdad — ver escucharCambiosDePago() más abajo. -->
       <div class="order-confirmed" id="orderConfirmedPanel" style="display:none;">
-        <div class="check-circle">✓</div>
-        <h2>¡Ya registramos tu pedido!</h2>
-        <p>Guardá esta pantalla como referencia — tu pedido está anotado de nuestro lado.</p>
-        <div class="steps">
+        <div class="check-circle" id="orderConfirmedIcon">✓</div>
+        <h2 id="orderConfirmedTitle">¡Ya registramos tu pedido!</h2>
+        <p id="orderConfirmedSubtitle">Guardá esta pantalla como referencia — tu pedido está anotado de nuestro lado.</p>
+        <div class="steps" id="orderConfirmedSteps">
           1️⃣ Si todavía no lo hiciste, realizá el pago (transferencia o Mercado Pago).<br>
           2️⃣ Deberíamos habernos abierto en WhatsApp con el mensaje listo — solo tenés que enviarlo.<br>
           3️⃣ En cuanto confirmemos que el pago llegó, te avisamos por WhatsApp.
         </div>
-        <p>¿No se abrió WhatsApp solo? Tocá acá:</p>
+        <p id="orderConfirmedWaLabel">¿No se abrió WhatsApp solo? Tocá acá:</p>
         <a class="btn btn-primary" id="waReopenBtn" href="https://wa.me/541136370072" target="_blank" rel="noopener">Abrir WhatsApp</a>
       </div>
 
@@ -580,6 +582,7 @@
         // si ya lo marcaste como pagado, y vaciarle el carrito en ese
         // momento — ver firebase-config.js.
         localStorage.setItem("pedidoActivo", orderDocRef.id);
+        escucharCambiosDePago();
       }catch(err){
         console.error("No se pudo guardar el pedido en Firestore:", err);
       }
@@ -706,6 +709,34 @@
       if(reopenBtn && waHref) reopenBtn.href = waHref;
       $("#orderConfirmedPanel").style.display = "block";
       $("#orderConfirmedPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // Cambia el contenido de la pantalla de confirmación al mensaje de
+    // "ya recibimos tu pago" — lo llama escucharCambiosDePago() apenas
+    // detecta, en vivo, que Anto marcó el pedido como pagado.
+    function mostrarPagoConfirmado(){
+      $("#paymentMethodsCard").style.display = "none";
+      $("#orderConfirmedTitle").textContent = "¡Confirmamos tu pago! 💖";
+      $("#orderConfirmedSubtitle").textContent = "Ya está todo en orden de nuestro lado.";
+      $("#orderConfirmedSteps").innerHTML =
+        "Si todavía no nos escribiste, confirmá tu pedido por WhatsApp con el botón de abajo.<br>" +
+        "Si ya lo hiciste, ya nos vamos a estar contactando para coordinar la entrega. 🌷";
+      $("#orderConfirmedWaLabel").textContent = "Confirmar por WhatsApp:";
+      $("#orderConfirmedPanel").style.display = "block";
+    }
+
+    // Escucha en vivo (sin que la clienta tenga que recargar la página)
+    // si el pedido pasa a pagado — ya sea porque Anto lo marca desde
+    // estadisticas.html o con el botón de un toque de la notificación.
+    function escucharCambiosDePago(){
+      if(!orderDocRef || !window.firebaseDb) return;
+      const { onSnapshot } = window.firebaseDb;
+      onSnapshot(orderDocRef, (snap) => {
+        const datos = snap.data();
+        if(datos && datos.pagoConfirmado === true){
+          mostrarPagoConfirmado();
+        }
+      });
     }
 
     // Cuando la clienta efectivamente toca "Confirmar pedido por WhatsApp",
