@@ -560,7 +560,7 @@
       const session = getSessionData();
       try{
         orderDocRef = await addDoc(collection(db, "pedidos"), {
-          items: cart.map(item => ({ title: item.title, price: item.price, qty: item.qty })),
+          items: cart.map(item => ({ id: item.id, title: item.title, price: item.price, qty: item.qty })),
           total: cartTotal(),
           clienteNombre: session.displayName || "",
           clienteEmail: session.email || "",
@@ -695,24 +695,6 @@
       localStorage.removeItem("cart");
     }
 
-    // Descuenta del stock en Firestore la cantidad de cada producto del
-    // carrito, apenas se confirma el pedido por WhatsApp — así, el
-    // siguiente visitante ya ve "Sin stock" si no queda más, sin que Anto
-    // tenga que entrar a marcarlo a mano. Si algún producto todavía no
-    // tiene su documento de stock en Firestore (por ejemplo, porque nunca
-    // se abrió stock.html), ese descuento puntual no se aplica — pero NO
-    // bloqueamos la compra por eso.
-    async function descontarStockDelCarrito(){
-      if(!window.firebaseDb) return;
-      const { db, doc, updateDoc, increment } = window.firebaseDb;
-      for(const item of cart){
-        try{
-          await updateDoc(doc(db, "stock", String(item.id)), { cantidad: increment(-item.qty) });
-        }catch(err){
-          console.error("No se pudo descontar stock de " + item.id, err);
-        }
-      }
-    }
 
     // Muestra la pantalla de "ya registramos tu pedido" apenas la clienta
     // toca "Confirmar pedido por WhatsApp" — así, si el click la saca del
@@ -749,7 +731,6 @@
           `Transferencia bancaria${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
         );
-        descontarStockDelCarrito();
         vaciarCarrito();
         mostrarConfirmacion(waTransferBtn.href);
       });
@@ -767,7 +748,6 @@
           `Mercado Pago${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
         );
-        descontarStockDelCarrito();
         vaciarCarrito();
         mostrarConfirmacion(waMpBtn.href);
       });

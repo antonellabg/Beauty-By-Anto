@@ -338,6 +338,26 @@
     // Firestore y recién en ese momento avisa al Web App de Apps Script
     // para que mande el mail de agradecimiento. Como lo hacés vos acá,
     // con tu navegador abierto, el aviso sale al instante.
+    // Descuenta del stock en Firestore la cantidad de cada producto del
+    // pedido, recién ahora que el pago está confirmado de verdad (no
+    // cuando la clienta solo dice que va a pagar). Si algún producto
+    // todavía no tiene su documento de stock, o es un pedido viejo que
+    // se guardó antes de que empezáramos a guardar el id de cada
+    // producto, ese descuento puntual no se aplica — pero no bloqueamos
+    // el marcado como pagado por eso.
+    async function descontarStockDelPedido(pedido){
+      if(!window.firebaseDb) return;
+      const { db, doc, updateDoc, increment } = window.firebaseDb;
+      for(const item of (pedido.items || [])){
+        if(item.id === undefined || item.id === null) continue;
+        try{
+          await updateDoc(doc(db, "stock", String(item.id)), { cantidad: increment(-(item.qty || 1)) });
+        }catch(err){
+          console.error("No se pudo descontar stock de " + item.id, err);
+        }
+      }
+    }
+
     async function marcarComoPagado(pedido, btn){
       if(!window.firebaseDb) return;
       const { db, doc, updateDoc, serverTimestamp } = window.firebaseDb;
@@ -350,6 +370,8 @@
           pagoConfirmado: true,
           pagoConfirmadoEl: serverTimestamp()
         });
+
+        await descontarStockDelPedido(pedido);
 
         if(MAILING_WEBAPP_URL){
           fetch(MAILING_WEBAPP_URL, {

@@ -225,6 +225,7 @@ function doGet(e){
     }
 
     fsPatchFields_(pedido.path, { pagoConfirmado: true });
+    descontarStockDelPedido_(pedido);
 
     if(pedido.clienteEmail){
       enviarMailAgradecimiento_(pedido);
@@ -736,6 +737,26 @@ function fsGetAllDocs_(collectionId){
     pageToken = data.nextPageToken || null;
   }while(pageToken);
   return docs;
+}
+
+/* ---------------------------------------------------------------------
+   Descuenta del stock la cantidad de cada producto del pedido, recién
+   cuando el pago queda confirmado de verdad (acá, o desde estadisticas.html
+   — los dos caminos posibles para marcar un pedido como pagado). Si algún
+   producto todavía no tiene su documento de stock, o es un pedido viejo
+   guardado antes de que empezáramos a guardar el id de cada producto, ese
+   descuento puntual no se aplica — no bloqueamos el marcado como pagado
+   por eso.
+   --------------------------------------------------------------------- */
+function descontarStockDelPedido_(pedido){
+  const items = pedido.items || [];
+  items.forEach(item => {
+    if(item.id === undefined || item.id === null) return;
+    const stockDoc = fsGetDoc_("stock/" + item.id);
+    if(!stockDoc || typeof stockDoc.cantidad !== "number") return;
+    const nuevoStock = Math.max(0, stockDoc.cantidad - (item.qty || 1));
+    fsPatchFields_("stock/" + item.id, { cantidad: nuevoStock });
+  });
 }
 
 function fsPatchFields_(path, fieldsObj){
