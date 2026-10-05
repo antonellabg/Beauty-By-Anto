@@ -162,6 +162,26 @@
 
     .mp-note{ color:var(--muted); font-size:13px; margin-top:12px; line-height:1.5; }
 
+    /* ---- confirmación visual tras tocar "Confirmar pedido por WhatsApp" ---- */
+    .order-confirmed{
+      background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow-sm);
+      padding:28px 22px; margin-bottom:22px; border:1px solid var(--blush-100); text-align:center;
+    }
+    .order-confirmed .check-circle{
+      width:56px; height:56px; border-radius:50%; background:#2a9d5c; color:#fff;
+      display:flex; align-items:center; justify-content:center; font-size:28px;
+      margin:0 auto 14px;
+    }
+    .order-confirmed h2{
+      font-family:var(--font-display); font-size:21px; color:#e46391; margin-bottom:10px;
+    }
+    .order-confirmed p{ color:var(--ink); font-size:14.5px; line-height:1.6; margin-bottom:8px; }
+    .order-confirmed .steps{
+      text-align:left; background:var(--cream); border-radius:12px; padding:14px 18px;
+      margin:16px 0; font-size:14px; line-height:1.9; color:var(--ink);
+    }
+    .order-confirmed .btn{ margin-top:6px; }
+
     footer.contact-note{
       text-align:center; color:var(--muted); font-size:13px; padding:20px 0 6px;
       border-top:2px solid #c7a450; margin-top:20px; padding-top:20px;
@@ -228,8 +248,22 @@
         <p class="shipping-note">*El costo de envío no está incluido en el total de arriba — se confirma por WhatsApp según la zona que elijas, antes de que hagas el pago. Los retiros son en Villa Devoto, CP 1419 (CABA).</p>
       </div>
 
+      <!-- Confirmación visual, aparece recién al tocar "Confirmar pedido por WhatsApp" -->
+      <div class="order-confirmed" id="orderConfirmedPanel" style="display:none;">
+        <div class="check-circle">✓</div>
+        <h2>¡Ya registramos tu pedido!</h2>
+        <p>Guardá esta pantalla como referencia — tu pedido está anotado de nuestro lado.</p>
+        <div class="steps">
+          1️⃣ Si todavía no lo hiciste, realizá el pago (transferencia o Mercado Pago).<br>
+          2️⃣ Deberíamos habernos abierto en WhatsApp con el mensaje listo — solo tenés que enviarlo.<br>
+          3️⃣ En cuanto confirmemos que el pago llegó, te avisamos por WhatsApp.
+        </div>
+        <p>¿No se abrió WhatsApp solo? Tocá acá:</p>
+        <a class="btn btn-primary" id="waReopenBtn" href="https://wa.me/541136370072" target="_blank" rel="noopener">Abrir WhatsApp</a>
+      </div>
+
       <!-- Métodos de pago -->
-      <div class="card">
+      <div class="card" id="paymentMethodsCard">
         <h2>¿Cómo querés pagar?</h2>
         <div class="pm-tabs">
           <div class="pm-tab active" data-tab="transferencia">💳 Transferencia bancaria</div>
@@ -661,6 +695,37 @@
       localStorage.removeItem("cart");
     }
 
+    // Descuenta del stock en Firestore la cantidad de cada producto del
+    // carrito, apenas se confirma el pedido por WhatsApp — así, el
+    // siguiente visitante ya ve "Sin stock" si no queda más, sin que Anto
+    // tenga que entrar a marcarlo a mano. Si algún producto todavía no
+    // tiene su documento de stock en Firestore (por ejemplo, porque nunca
+    // se abrió stock.html), ese descuento puntual no se aplica — pero NO
+    // bloqueamos la compra por eso.
+    async function descontarStockDelCarrito(){
+      if(!window.firebaseDb) return;
+      const { db, doc, updateDoc, increment } = window.firebaseDb;
+      for(const item of cart){
+        try{
+          await updateDoc(doc(db, "stock", String(item.id)), { cantidad: increment(-item.qty) });
+        }catch(err){
+          console.error("No se pudo descontar stock de " + item.id, err);
+        }
+      }
+    }
+
+    // Muestra la pantalla de "ya registramos tu pedido" apenas la clienta
+    // toca "Confirmar pedido por WhatsApp" — así, si el click la saca del
+    // navegador (va a la app de WhatsApp) y vuelve, encuentra una
+    // confirmación clara en vez del mismo formulario de siempre.
+    function mostrarConfirmacion(waHref){
+      $("#paymentMethodsCard").style.display = "none";
+      const reopenBtn = $("#waReopenBtn");
+      if(reopenBtn && waHref) reopenBtn.href = waHref;
+      $("#orderConfirmedPanel").style.display = "block";
+      $("#orderConfirmedPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     // Cuando la clienta efectivamente toca "Confirmar pedido por WhatsApp",
     // dejamos marcado en Firestore que este pedido sí llegó a esa instancia
     // (no solo que abrió la pantalla de pago). OJO: esto significa "dijo
@@ -684,7 +749,9 @@
           `Transferencia bancaria${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
         );
+        descontarStockDelCarrito();
         vaciarCarrito();
+        mostrarConfirmacion(waTransferBtn.href);
       });
     }
     if(waMpBtn){
@@ -700,7 +767,9 @@
           `Mercado Pago${zona ? " - Zona: " + zona : ""}${nombre ? " — " + nombre : ""} — $${cartTotal().toLocaleString("es-AR")}\n\nTocá el botón cuando veas la plata en tu cuenta.`,
           orderDocRef ? orderDocRef.id : null
         );
+        descontarStockDelCarrito();
         vaciarCarrito();
+        mostrarConfirmacion(waMpBtn.href);
       });
     }
 

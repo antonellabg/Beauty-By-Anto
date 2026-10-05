@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function esAdmin() {
+      return request.auth != null &&
+        (request.auth.token.email == "antobranda07@gmail.com" ||
+         request.auth.token.email == "beauty.by.anto.makeup@gmail.com");
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if request.auth != null;
+      allow read: if esAdmin() || (request.auth != null && request.auth.uid == resource.data.clienteUid);
+      allow update: if esAdmin() || (request.auth != null && request.auth.uid == resource.data.clienteUid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['pagoConfirmado', 'agradecimientoEnviado', 'recordatorioEnviado']));
+      allow delete: if esAdmin();
+    }
+    match /usuarios/{usuarioId} {
+      allow read: if esAdmin();
+      allow write: if request.auth != null && request.auth.uid == usuarioId;
+    }
+    match /cuponesUso/{docId} { allow read, write: if true; }
+    match /stock/{productoId} {
+      allow read: if true;
+      // Anto (admin) puede escribir lo que sea. Cualquier otra clienta
+      // logueada solo puede BAJAR el número de stock de un producto que
+      // ya existe (al confirmar una compra) — nunca subirlo, nunca
+      // crear un producto nuevo en esta colección, y nunca dejarlo
+      // negativo. Esto evita que alguien infle el stock a mano.
+      allow write: if esAdmin() || (
+        request.auth != null &&
+        resource != null &&
+        request.resource.data.cantidad is number &&
+        request.resource.data.cantidad < resource.data.cantidad &&
+        request.resource.data.cantidad >= 0
+      );
+    }
+  }
+}
