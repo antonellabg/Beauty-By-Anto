@@ -607,7 +607,7 @@
   </style>
 
   <!-- Firebase (Authentication) -->
-  <script type="module" src="firebase-config-v2.js?v=2"></script>
+  <script type="module" src="firebase-config-v2.js?v=3"></script>
 </head>
 <body>
 
@@ -1075,7 +1075,7 @@
     // el script (por ejemplo, en el botón de "Finalizar compra" del carrito).
     let auth, googleProvider;
     let fbSignInWithPopup, fbSignInWithEmailAndPassword, fbCreateUserWithEmailAndPassword,
-        fbSignOut, fbOnAuthStateChanged, fbUpdateProfile, fbSendPasswordResetEmail;
+        fbSignOut, fbOnAuthStateChanged, fbUpdateProfile, fbSendPasswordResetEmail, fbGetAdditionalUserInfo;
 
     let pendingCheckout = false;
 
@@ -1194,6 +1194,7 @@
       fbOnAuthStateChanged = window.firebaseAuth.onAuthStateChanged;
       fbUpdateProfile = window.firebaseAuth.updateProfile;
       fbSendPasswordResetEmail = window.firebaseAuth.sendPasswordResetEmail;
+      fbGetAdditionalUserInfo = window.firebaseAuth.getAdditionalUserInfo;
 
       // Guarda (o actualiza) el mail de la persona en la colección
       // "usuarios" de Firestore, para poder mandarle mails más adelante
@@ -1240,6 +1241,7 @@
             $("#registerPanel").reset();
             if(window.trackEvent) trackEvent("sign_up", { method: "email" });
             if(window.registrarLead) registrarLead("sign_up");
+            if(window.enviarMailBienvenida) enviarMailBienvenida(email, name);
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
@@ -1268,8 +1270,11 @@
         $("#loginError").classList.remove("show");
         fbSignInWithPopup(auth, googleProvider)
           .then(cred => {
-            if(window.trackEvent) trackEvent("login", { method: "google" });
-            if(window.registrarLead) registrarLead("login");
+            const infoGoogle = fbGetAdditionalUserInfo ? fbGetAdditionalUserInfo(cred) : null;
+            const esCuentaNueva = !!(infoGoogle && infoGoogle.isNewUser);
+            if(window.trackEvent) trackEvent(esCuentaNueva ? "sign_up" : "login", { method: "google" });
+            if(window.registrarLead) registrarLead(esCuentaNueva ? "sign_up" : "login");
+            if(esCuentaNueva && window.enviarMailBienvenida) enviarMailBienvenida(cred.user.email, cred.user.displayName);
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
