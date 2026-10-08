@@ -517,9 +517,22 @@
       }
     }
 
+    let authListo = false;
     async function cargarPedidos(){
-      if(!window.firebaseDb){
+      if(!window.firebaseDb || !window.firebaseAuth){
         window.addEventListener("firebaseReady", cargarPedidos, { once: true });
+        return;
+      }
+      // Esperamos a que Firebase confirme que la sesión de admin ya está
+      // restaurada antes de pedir los pedidos. Si no esperamos esto, en
+      // algunos casos la lectura sale una fracción de segundo antes de
+      // que Firestore sepa quién está logueada, y Firestore la rechaza
+      // como si nadie hubiera iniciado sesión (aunque sí lo estés).
+      if(!authListo){
+        window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, () => {
+          authListo = true;
+          cargarPedidos();
+        });
         return;
       }
       const { db, collection, getDocs } = window.firebaseDb;
