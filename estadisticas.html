@@ -241,20 +241,29 @@
 
     // Arma una tabla de detalle (fecha y hora de cada evento), ordenada
     // de más reciente a más antiguo, mostrando como máximo "limite" filas
-    // para no sobrecargar la página.
-    function tablaDetalle(lista, columnasExtra, limite){
+    // para no sobrecargar la página. Cada fila tiene un casillero para
+    // poder borrar registros puntuales (por ejemplo, una visita de
+    // prueba tuya), igual que ya se puede con los pedidos.
+    function tablaDetalle(lista, columnasExtra, limite, grupo){
       const ordenada = lista.slice().sort((a, b) => (b.fecha ? b.fecha.getTime() : 0) - (a.fecha ? a.fecha.getTime() : 0));
       if(ordenada.length === 0) return '<p class="empty">Todavía no hay registros.</p>';
       const filas = ordenada.slice(0, limite).map(ev => {
         const extra = columnasExtra ? columnasExtra(ev) : "";
-        return `<tr><td>${fmtFechaHora(ev.fecha)}</td>${extra}</tr>`;
+        return `<tr><td><input type="checkbox" class="chk-stat" data-grupo="${grupo}" data-id="${ev.id}"></td><td>${fmtFechaHora(ev.fecha)}</td>${extra}</tr>`;
       }).join("");
       const encabezadoExtra = columnasExtra ? columnasExtra.encabezado || "" : "";
       const nota = ordenada.length > limite
-        ? `<p style="font-size:12px;color:var(--muted);margin-top:6px;">Mostrando los ${limite} más recientes de ${ordenada.length}.</p>`
+        ? `<p style="font-size:12px;color:var(--muted);margin-top:6px;">Mostrando los ${limite} más recientes de ${ordenada.length} (solo se pueden seleccionar los que se ven en esta lista).</p>`
         : "";
-      return `<table>
-          <thead><tr><th>Fecha y hora</th>${encabezadoExtra}</tr></thead>
+      return `
+        <div class="borrar-zone">
+          <button class="btn-sel-todos" data-grupo="${grupo}">Seleccionar todos</button>
+          <button class="btn-desel-todos" data-grupo="${grupo}">Deseleccionar todos</button>
+          <button class="btn-borrar-sel" data-grupo="${grupo}">🗑️ Borrar seleccionados</button>
+          <span class="contador" data-contador="${grupo}">0 seleccionados</span>
+        </div>
+        <table>
+          <thead><tr><th></th><th>Fecha y hora</th>${encabezadoExtra}</tr></thead>
           <tbody>${filas}</tbody>
         </table>${nota}`;
     }
@@ -363,7 +372,7 @@
           </div>`;
         })()}
         <h3 style="margin:14px 0 8px;font-size:14.5px;color:var(--muted);">Detalle: fecha y hora de cada visita</h3>
-        ${tablaDetalle(visitas, null, 100)}
+        ${tablaDetalle(visitas, null, 100, "visitas")}
 
         <h2 class="section-title">Leads (inicios de sesión / registros)</h2>
         ${(() => {
@@ -378,7 +387,7 @@
         ${(() => {
           const col = ev => `<td>${ev.tipo || "—"}</td>`;
           col.encabezado = "<th>Tipo</th>";
-          return tablaDetalle(leads, col, 100);
+          return tablaDetalle(leads, col, 100, "leads");
         })()}
 
         <h2 class="section-title">Clicks por producto</h2>
@@ -402,7 +411,7 @@
         ${(() => {
           const col = ev => `<td>${nombreProducto(ev.productoId)}</td>`;
           col.encabezado = "<th>Producto</th>";
-          return tablaDetalle(clicksFiltradosPorPeriodo(clicksPeriodo), col, 100);
+          return tablaDetalle(clicksFiltradosPorPeriodo(clicksPeriodo), col, 100, "clicks");
         })()}
 
         <div class="borrar-zone" style="margin-top:18px;">
@@ -499,6 +508,76 @@
       if(btnBorrarEstadisticas){
         btnBorrarEstadisticas.addEventListener("click", borrarEstadisticas);
       }
+
+      $$controlesDetalleEstadisticas();
+    }
+
+    // Mapea cada "grupo" (como se ve en pantalla) a su colección real de
+    // Firestore, para poder borrar un registro puntual (una visita, un
+    // lead o un click) desde las tablas de detalle.
+    const COLECCION_POR_GRUPO = { visitas: "visitas", leads: "leads", clicks: "clicksProductos" };
+
+    function actualizarContadorGrupo(grupo){
+      const n = document.querySelectorAll(`.chk-stat[data-grupo="${grupo}"]:checked`).length;
+      const el = document.querySelector(`.contador[data-contador="${grupo}"]`);
+      if(el) el.textContent = n + " seleccionados";
+    }
+
+    // Borra, de forma permanente, los registros puntuales marcados con
+    // el casillero en una de las tablas de detalle (visitas, leads o
+    // clicks). Pide confirmación antes, igual que al borrar pedidos.
+    async function borrarSeleccionadosDetalle(grupo){
+      const checks = document.querySelectorAll(`.chk-stat[data-grupo="${grupo}"]:checked`);
+      if(checks.length === 0){
+        alert("No marcaste ningún registro.");
+        return;
+      }
+      const confirmado = confirm(
+        `Vas a borrar ${checks.length} registro(s) de forma permanente. Esto no se puede deshacer. ¿Confirmás?`
+      );
+      if(!confirmado) return;
+
+      const coleccion = COLECCION_POR_GRUPO[grupo];
+      const { db, doc, deleteDoc } = window.firebaseDb;
+      const ids = Array.from(checks).map(c => c.dataset.id);
+      const borradosIds = [];
+
+      for(const id of ids){
+        try{
+          await deleteDoc(doc(db, coleccion, id));
+          borradosIds.push(id);
+        }catch(err){
+          console.error(`No se pudo borrar ${coleccion}/${id}:`, err);
+        }
+      }
+
+      if(grupo === "visitas") visitas = visitas.filter(v => !borradosIds.includes(v.id));
+      else if(grupo === "leads") leads = leads.filter(l => !borradosIds.includes(l.id));
+      else if(grupo === "clicks") clicksProductos = clicksProductos.filter(c => !borradosIds.includes(c.id));
+
+      alert(`Listo, se borraron ${borradosIds.length} de ${ids.length} registro(s).`);
+      render();
+    }
+
+    function $$controlesDetalleEstadisticas(){
+      document.querySelectorAll(".btn-sel-todos").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(`.chk-stat[data-grupo="${btn.dataset.grupo}"]`).forEach(c => c.checked = true);
+          actualizarContadorGrupo(btn.dataset.grupo);
+        });
+      });
+      document.querySelectorAll(".btn-desel-todos").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(`.chk-stat[data-grupo="${btn.dataset.grupo}"]`).forEach(c => c.checked = false);
+          actualizarContadorGrupo(btn.dataset.grupo);
+        });
+      });
+      document.querySelectorAll(".btn-borrar-sel[data-grupo]").forEach(btn => {
+        btn.addEventListener("click", () => borrarSeleccionadosDetalle(btn.dataset.grupo));
+      });
+      document.querySelectorAll(".chk-stat").forEach(c => {
+        c.addEventListener("change", () => actualizarContadorGrupo(c.dataset.grupo));
+      });
     }
 
     // Marca el pedido como efectivamente pagado: lo actualiza en
