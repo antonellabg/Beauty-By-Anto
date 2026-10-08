@@ -223,6 +223,42 @@
       return Array.from(mapa.values()).sort((a, b) => b.cantidad - a.cantidad);
     }
 
+    function fmtFechaHora(d){
+      if(!d) return "—";
+      return d.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+    }
+
+    function clicksFiltradosPorPeriodo(periodo){
+      if(periodo === "mes"){
+        const inicioMes = inicioDeMes();
+        return clicksProductos.filter(c => c.fecha && c.fecha >= inicioMes);
+      }else if(periodo === "semana"){
+        const inicioSemana = inicioDeSemana();
+        return clicksProductos.filter(c => c.fecha && c.fecha >= inicioSemana);
+      }
+      return clicksProductos;
+    }
+
+    // Arma una tabla de detalle (fecha y hora de cada evento), ordenada
+    // de más reciente a más antiguo, mostrando como máximo "limite" filas
+    // para no sobrecargar la página.
+    function tablaDetalle(lista, columnasExtra, limite){
+      const ordenada = lista.slice().sort((a, b) => (b.fecha ? b.fecha.getTime() : 0) - (a.fecha ? a.fecha.getTime() : 0));
+      if(ordenada.length === 0) return '<p class="empty">Todavía no hay registros.</p>';
+      const filas = ordenada.slice(0, limite).map(ev => {
+        const extra = columnasExtra ? columnasExtra(ev) : "";
+        return `<tr><td>${fmtFechaHora(ev.fecha)}</td>${extra}</tr>`;
+      }).join("");
+      const encabezadoExtra = columnasExtra ? columnasExtra.encabezado || "" : "";
+      const nota = ordenada.length > limite
+        ? `<p style="font-size:12px;color:var(--muted);margin-top:6px;">Mostrando los ${limite} más recientes de ${ordenada.length}.</p>`
+        : "";
+      return `<table>
+          <thead><tr><th>Fecha y hora</th>${encabezadoExtra}</tr></thead>
+          <tbody>${filas}</tbody>
+        </table>${nota}`;
+    }
+
     function nombreProducto(id){
       if(window.PRODUCTS){
         const p = window.PRODUCTS.find(x => String(x.id) === String(id));
@@ -326,6 +362,8 @@
             <div class="card"><span class="num">${v.semana}</span><span class="label">Esta semana</span></div>
           </div>`;
         })()}
+        <h3 style="margin:14px 0 8px;font-size:14.5px;color:var(--muted);">Detalle: fecha y hora de cada visita</h3>
+        ${tablaDetalle(visitas, null, 100)}
 
         <h2 class="section-title">Leads (inicios de sesión / registros)</h2>
         ${(() => {
@@ -335,6 +373,12 @@
             <div class="card"><span class="num">${l.mes}</span><span class="label">Este mes</span></div>
             <div class="card"><span class="num">${l.semana}</span><span class="label">Esta semana</span></div>
           </div>`;
+        })()}
+        <h3 style="margin:14px 0 8px;font-size:14.5px;color:var(--muted);">Detalle: fecha y hora de cada lead</h3>
+        ${(() => {
+          const col = ev => `<td>${ev.tipo || "—"}</td>`;
+          col.encabezado = "<th>Tipo</th>";
+          return tablaDetalle(leads, col, 100);
         })()}
 
         <h2 class="section-title">Clicks por producto</h2>
@@ -353,6 +397,12 @@
                 .map(c => `<tr><td>${nombreProducto(c.id)}</td><td>${c.cantidad || 0}</td></tr>`)
                 .join("")}</tbody>
             </table>`;
+        })()}
+        <h3 style="margin:14px 0 8px;font-size:14.5px;color:var(--muted);">Detalle: fecha y hora de cada click (según el período elegido arriba)</h3>
+        ${(() => {
+          const col = ev => `<td>${nombreProducto(ev.productoId)}</td>`;
+          col.encabezado = "<th>Producto</th>";
+          return tablaDetalle(clicksFiltradosPorPeriodo(clicksPeriodo), col, 100);
         })()}
 
         <div class="borrar-zone" style="margin-top:18px;">
