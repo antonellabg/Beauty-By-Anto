@@ -198,6 +198,56 @@ function mostrarCartelPagoConfirmado(){
   }
 })();
 
+// ---------------------------------------------------------------------
+// Estadísticas propias (Firestore), además de lo que ya mide Google
+// Analytics. Se guardan agrupadas por día para poder filtrarlas en
+// estadisticas.html igual que los pedidos ("Últimos 7/30 días").
+// ---------------------------------------------------------------------
+
+// Fecha de hoy en formato YYYY-MM-DD, en horario de Argentina (así los
+// días coinciden con cuando Anto revisa el panel, sin importar en qué
+// zona horaria esté el navegador de la clienta).
+function fechaHoyAR_(){
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+}
+
+// Cuenta una visita a la web. Se llama una sola vez por pestaña/sesión
+// (usamos sessionStorage para no inflar el número cada vez que la misma
+// persona navega entre páginas o recarga) y queda agrupada por día.
+function registrarVisita(){
+  try{
+    if(sessionStorage.getItem("bbaVisitaContada")) return;
+    sessionStorage.setItem("bbaVisitaContada", "1");
+  }catch(e){ /* sin sessionStorage disponible: seguimos igual, sin el límite */ }
+  setDoc(doc(db, "visitasDiarias", fechaHoyAR_()), { cantidad: increment(1) }, { merge: true })
+    .catch(err => console.error("No se pudo registrar la visita:", err));
+}
+window.registrarVisita = registrarVisita;
+
+// Cuenta un "lead": alguien que inició sesión o se registró. Se llama
+// desde los mismos puntos donde ya se llama a trackEvent("login"/"sign_up"),
+// así queda también en nuestras propias estadísticas y no solo en Google
+// Analytics.
+function registrarLead(tipo){
+  setDoc(doc(db, "leadsDiarios", fechaHoyAR_()), { cantidad: increment(1) }, { merge: true })
+    .catch(err => console.error("No se pudo registrar el lead:", err));
+}
+window.registrarLead = registrarLead;
+
+// Cuenta una vista de la ficha de un producto (producto.html), para
+// poder ver cuáles son los que más interés generan. Se guarda un
+// documento por producto con el total acumulado.
+function registrarClickProducto(id, titulo){
+  if(id === undefined || id === null) return;
+  setDoc(doc(db, "clicksProductos", String(id)), {
+    cantidad: increment(1),
+    titulo: titulo || ""
+  }, { merge: true }).catch(err => console.error("No se pudo registrar el click del producto:", err));
+}
+window.registrarClickProducto = registrarClickProducto;
+
+registrarVisita();
+
 // Como este archivo se carga como <script type="module">, se ejecuta en
 // forma diferida (después de parsear el HTML) y en un momento distinto al
 // del resto de los scripts de la página. Avisamos con un evento cuando

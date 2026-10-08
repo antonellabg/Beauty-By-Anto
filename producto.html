@@ -961,6 +961,18 @@
       pdProduct = p;
       pdImgs = p.img; pdIdx = 0;
 
+      // Para saber qué productos generan más interés. Se cuenta una
+      // sola vez por producto por sesión (no en cada re-render, por
+      // ejemplo cuando llega el stock en vivo), para no inflar el número.
+      try{
+        const yaContado = sessionStorage.getItem("bbaClickProd_" + p.id);
+        if(!yaContado){
+          sessionStorage.setItem("bbaClickProd_" + p.id, "1");
+          if(window.registrarClickProducto) registrarClickProducto(p.id, p.title);
+          else window.addEventListener("firebaseReady", () => { if(window.registrarClickProducto) registrarClickProducto(p.id, p.title); }, { once:true });
+        }
+      }catch(e){ /* sin sessionStorage: no pasa nada grave, solo no deduplicamos */ }
+
       document.title = `${p.title} — Beauty by Anto`;
       const metaDesc = document.getElementById("pageDescription");
       if(metaDesc) metaDesc.setAttribute("content", p.desc || `${p.title} — Beauty by Anto, ${priceLabel(p)}.`);
@@ -1261,6 +1273,7 @@
           .then(cred => {
             $("#loginPanel").reset();
             if(window.trackEvent) trackEvent("login", { method: "email" });
+            if(window.registrarLead) registrarLead("login");
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
@@ -1280,6 +1293,7 @@
           .then(cred => {
             $("#registerPanel").reset();
             if(window.trackEvent) trackEvent("sign_up", { method: "email" });
+            if(window.registrarLead) registrarLead("sign_up");
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
@@ -1309,6 +1323,7 @@
         fbSignInWithPopup(auth, googleProvider)
           .then(cred => {
             if(window.trackEvent) trackEvent("login", { method: "google" });
+            if(window.registrarLead) registrarLead("login");
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {

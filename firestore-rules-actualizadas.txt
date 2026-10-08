@@ -32,5 +32,29 @@ service cloud.firestore {
         request.resource.data.cantidad >= 0
       );
     }
+
+    // Estadísticas propias (contadores para el panel de estadisticas.html).
+    // Nadie puede leer estos números salvo Anto (admin) desde el panel;
+    // cualquier visitante puede sumar 1 al contador del día (o del
+    // producto), pero no puede escribir ningún otro campo ni leer los
+    // totales ya guardados.
+    match /visitasDiarias/{fecha} {
+      allow read: if esAdmin();
+      allow write: if request.resource.data.keys().hasOnly(['cantidad']) &&
+                      request.resource.data.cantidad is number;
+    }
+    match /leadsDiarios/{fecha} {
+      allow read: if esAdmin();
+      // Solo se escribe justo después de un login o registro exitoso,
+      // así que requerimos sesión iniciada.
+      allow write: if request.auth != null &&
+                      request.resource.data.keys().hasOnly(['cantidad']) &&
+                      request.resource.data.cantidad is number;
+    }
+    match /clicksProductos/{productoId} {
+      allow read: if esAdmin();
+      allow write: if request.resource.data.keys().hasOnly(['cantidad', 'titulo']) &&
+                      request.resource.data.cantidad is number;
+    }
   }
 }

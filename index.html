@@ -1219,6 +1219,7 @@
           .then(cred => {
             $("#loginPanel").reset();
             if(window.trackEvent) trackEvent("login", { method: "email" });
+            if(window.registrarLead) registrarLead("login");
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
@@ -1238,6 +1239,7 @@
           .then(cred => {
             $("#registerPanel").reset();
             if(window.trackEvent) trackEvent("sign_up", { method: "email" });
+            if(window.registrarLead) registrarLead("sign_up");
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {
@@ -1267,6 +1269,7 @@
         fbSignInWithPopup(auth, googleProvider)
           .then(cred => {
             if(window.trackEvent) trackEvent("login", { method: "google" });
+            if(window.registrarLead) registrarLead("login");
             guardarUsuarioEnFirestore(cred.user);
           })
           .catch(err => {

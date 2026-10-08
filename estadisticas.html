@@ -112,14 +112,12 @@
     <p class="subtitle">Beauty by Anto — panel interno</p>
 
     <div class="ga-note">
-      <strong>Visitas a la página, inicios de sesión y registros</strong> se miden con Google Analytics
-      (ya conectado al proyecto). Para verlos entrá a
-      <a href="https://analytics.google.com" target="_blank" rel="noopener">analytics.google.com</a>,
-      elegí la propiedad de Beauty by Anto y mirá:
-      <br>• <strong>Informes → Tiempo real / Interacción → Páginas y pantallas</strong> → visitas a cada página.
-      <br>• <strong>Informes → Interacción → Eventos</strong> → buscá <code>login</code> (inicios de sesión,
-      separados por método: email o google) y <code>sign_up</code> (registros nuevos).
-      <br>Los datos pueden tardar unas horas en aparecer la primera vez.
+      <strong>Visitas, leads y clicks por producto</strong> ahora también se muestran directamente acá abajo
+      (card "Visitas, leads y clicks"), con los mismos filtros de fecha que los pedidos.
+      Si además querés más detalle (por ejemplo de dónde vienen las visitas), eso lo seguís viendo en Google
+      Analytics: entrá a <a href="https://analytics.google.com" target="_blank" rel="noopener">analytics.google.com</a>,
+      elegí la propiedad de Beauty by Anto y mirá <strong>Informes → Interacción → Eventos</strong> (<code>login</code>
+      y <code>sign_up</code>). Los datos de Google Analytics pueden tardar unas horas en aparecer la primera vez.
     </div>
 
     <div class="ga-note">
@@ -134,6 +132,7 @@
     </div>
   </div>
 
+  <script src="products-data.js?v=23"></script>
   <script type="module" src="firebase-config-v2.js?v=2"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -145,6 +144,9 @@
     const MAILING_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbybetKUyKoElKwN99mgQwWfheYfdBPnnzOyQtf5xMgKVyveGgcJtQGCJkhzS8MLVqSC/exec";
 
     let pedidos = [];
+    let visitasDiarias = [];   // [{ fecha: "YYYY-MM-DD", cantidad }]
+    let leadsDiarios = [];     // [{ fecha: "YYYY-MM-DD", cantidad }]
+    let clicksProductos = [];  // [{ id, titulo, cantidad }]
     let currentFilter = "all"; // all | 7 | 30
 
     function fmtMoney(n){
@@ -160,6 +162,28 @@
     function filteredPedidos(){
       if(currentFilter === "all") return pedidos;
       return pedidos.filter(p => withinDays(p.creadoEl, Number(currentFilter)));
+    }
+
+    // Suma los "cantidad" de una lista de documentos diarios
+    // ({ fecha: "YYYY-MM-DD", cantidad }), filtrando por los mismos
+    // rangos de fecha que usa el filtro de pedidos (todo / 30 / 7 días).
+    function sumaDiaria(lista){
+      if(currentFilter === "all") return lista.reduce((s, d) => s + (d.cantidad || 0), 0);
+      const dias = Number(currentFilter);
+      const limite = new Date();
+      limite.setDate(limite.getDate() - dias);
+      const limiteStr = limite.toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+      return lista
+        .filter(d => d.fecha >= limiteStr)
+        .reduce((s, d) => s + (d.cantidad || 0), 0);
+    }
+
+    function nombreProducto(id){
+      if(window.PRODUCTS){
+        const p = window.PRODUCTS.find(x => String(x.id) === String(id));
+        if(p) return p.title;
+      }
+      return "Producto #" + id;
     }
 
     // Un pedido cuenta como "abandonado" solo si nadie lo pagó todavía
@@ -246,7 +270,29 @@
             <span class="num">${fmtMoney(montoVerificado)}</span>
             <span class="label">Monto verificado</span>
           </div>
+          <div class="card">
+            <span class="num">${sumaDiaria(visitasDiarias)}</span>
+            <span class="label">Visitas a la web</span>
+          </div>
+          <div class="card">
+            <span class="num">${sumaDiaria(leadsDiarios)}</span>
+            <span class="label">Leads (inicios de sesión / registros)</span>
+          </div>
         </div>
+
+        <h2 class="section-title">Clicks por producto (total histórico)</h2>
+        ${clicksProductos.length === 0
+          ? '<p class="empty">Todavía no hay clicks registrados.</p>'
+          : `<table>
+              <thead><tr><th>Producto</th><th>Clicks / vistas de ficha</th></tr></thead>
+              <tbody>${clicksProductos
+                .slice()
+                .sort((a, b) => (b.cantidad || 0) - (a.cantidad || 0))
+                .slice(0, 20)
+                .map(c => `<tr><td>${nombreProducto(c.id)}</td><td>${c.cantidad || 0}</td></tr>`)
+                .join("")}</tbody>
+            </table>`
+        }
 
         <h2 class="section-title">Últimos pedidos</h2>
         ${list.length === 0
@@ -445,6 +491,32 @@
       });
     }
 
+    // Carga visitasDiarias, leadsDiarios y clicksProductos. Son
+    // estadísticas nuevas y no bloqueantes: si alguna falla (por ejemplo,
+    // por reglas de Firestore que todavía no las contemplan), se loguea
+    // el error pero no se rompe el resto del panel.
+    async function cargarEstadisticasPropias(){
+      const { db, collection, getDocs } = window.firebaseDb;
+      try{
+        const snap = await getDocs(collection(db, "visitasDiarias"));
+        visitasDiarias = snap.docs.map(d => ({ fecha: d.id, cantidad: (d.data().cantidad || 0) }));
+      }catch(err){
+        console.error("No se pudieron cargar las visitas:", err);
+      }
+      try{
+        const snap = await getDocs(collection(db, "leadsDiarios"));
+        leadsDiarios = snap.docs.map(d => ({ fecha: d.id, cantidad: (d.data().cantidad || 0) }));
+      }catch(err){
+        console.error("No se pudieron cargar los leads:", err);
+      }
+      try{
+        const snap = await getDocs(collection(db, "clicksProductos"));
+        clicksProductos = snap.docs.map(d => ({ id: d.id, titulo: d.data().titulo || "", cantidad: (d.data().cantidad || 0) }));
+      }catch(err){
+        console.error("No se pudieron cargar los clicks por producto:", err);
+      }
+    }
+
     async function cargarPedidos(){
       if(!window.firebaseDb){
         window.addEventListener("firebaseReady", cargarPedidos, { once: true });
@@ -461,6 +533,7 @@
             creadoEl: data.creadoEl && data.creadoEl.toDate ? data.creadoEl.toDate() : null
           };
         });
+        await cargarEstadisticasPropias();
         render();
       }catch(err){
         console.error("No se pudieron cargar los pedidos:", err);
