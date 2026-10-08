@@ -112,12 +112,14 @@
     <p class="subtitle">Beauty by Anto — panel interno</p>
 
     <div class="ga-note">
-      <strong>Visitas, leads y clicks por producto</strong> ahora también se muestran directamente acá abajo
-      (card "Visitas, leads y clicks"), con los mismos filtros de fecha que los pedidos.
-      Si además querés más detalle (por ejemplo de dónde vienen las visitas), eso lo seguís viendo en Google
-      Analytics: entrá a <a href="https://analytics.google.com" target="_blank" rel="noopener">analytics.google.com</a>,
-      elegí la propiedad de Beauty by Anto y mirá <strong>Informes → Interacción → Eventos</strong> (<code>login</code>
-      y <code>sign_up</code>). Los datos de Google Analytics pueden tardar unas horas en aparecer la primera vez.
+      <strong>Visitas, leads y clicks por producto</strong> se muestran acá abajo con <strong>total / este mes / esta
+      semana</strong>, y los clicks por producto además se pueden ver por total, por mes o por semana con los
+      botones de esa sección. Cada visita, lead y click se guarda con su fecha y hora exacta, y se puede borrar
+      todo ese historial con el botón al final de esa sección (no borra pedidos). Si además querés más detalle
+      (por ejemplo de dónde vienen las visitas), eso lo seguís viendo en Google Analytics: entrá a
+      <a href="https://analytics.google.com" target="_blank" rel="noopener">analytics.google.com</a>, elegí la
+      propiedad de Beauty by Anto y mirá <strong>Informes → Interacción → Eventos</strong> (<code>login</code> y
+      <code>sign_up</code>). Los datos de Google Analytics pueden tardar unas horas en aparecer la primera vez.
     </div>
 
     <div class="ga-note">
@@ -144,10 +146,11 @@
     const MAILING_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbybetKUyKoElKwN99mgQwWfheYfdBPnnzOyQtf5xMgKVyveGgcJtQGCJkhzS8MLVqSC/exec";
 
     let pedidos = [];
-    let visitasDiarias = [];   // [{ fecha: "YYYY-MM-DD", cantidad }]
-    let leadsDiarios = [];     // [{ fecha: "YYYY-MM-DD", cantidad }]
-    let clicksProductos = [];  // [{ id, titulo, cantidad }]
-    let currentFilter = "all"; // all | 7 | 30
+    let visitas = [];          // [{ id, fecha: Date }] — una visita por documento
+    let leads = [];            // [{ id, fecha: Date, tipo }] — un lead por documento
+    let clicksProductos = [];  // [{ id, fecha: Date, productoId, titulo }] — un click por documento
+    let currentFilter = "all"; // all | 7 | 30 (filtro de la tabla de pedidos)
+    let clicksPeriodo = "total"; // total | mes | semana (filtro de la tabla de clicks por producto)
 
     function fmtMoney(n){
       return "$" + (n || 0).toLocaleString("es-AR");
@@ -164,18 +167,60 @@
       return pedidos.filter(p => withinDays(p.creadoEl, Number(currentFilter)));
     }
 
-    // Suma los "cantidad" de una lista de documentos diarios
-    // ({ fecha: "YYYY-MM-DD", cantidad }), filtrando por los mismos
-    // rangos de fecha que usa el filtro de pedidos (todo / 30 / 7 días).
-    function sumaDiaria(lista){
-      if(currentFilter === "all") return lista.reduce((s, d) => s + (d.cantidad || 0), 0);
-      const dias = Number(currentFilter);
-      const limite = new Date();
-      limite.setDate(limite.getDate() - dias);
-      const limiteStr = limite.toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
-      return lista
-        .filter(d => d.fecha >= limiteStr)
-        .reduce((s, d) => s + (d.cantidad || 0), 0);
+    // Lunes a las 00:00 de la semana en curso (hora de Argentina), para
+    // poder contar "esta semana" de forma consistente.
+    function inicioDeSemana(){
+      const ahora = new Date();
+      const d = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+      const dia = d.getDay(); // 0 = domingo ... 6 = sábado
+      const diff = (dia === 0 ? -6 : 1) - dia; // retrocede hasta el lunes
+      d.setDate(d.getDate() + diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    // Día 1 del mes en curso a las 00:00 (hora de Argentina).
+    function inicioDeMes(){
+      const ahora = new Date();
+      const d = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+      d.setDate(1);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    // Dado un array de eventos ({ fecha: Date, ... }), devuelve cuántos
+    // caen en total, en lo que va del mes y en lo que va de la semana.
+    function contarPeriodos(lista){
+      const inicioMes = inicioDeMes();
+      const inicioSemana = inicioDeSemana();
+      let mes = 0, semana = 0;
+      lista.forEach(ev => {
+        if(!ev.fecha) return;
+        if(ev.fecha >= inicioMes) mes++;
+        if(ev.fecha >= inicioSemana) semana++;
+      });
+      return { total: lista.length, mes, semana };
+    }
+
+    // Agrupa los clicks por producto según el período elegido (total,
+    // este mes, o esta semana) y devuelve el ranking ordenado de mayor
+    // a menor cantidad de clicks.
+    function clicksPorProductoAgrupados(periodo){
+      let lista = clicksProductos;
+      if(periodo === "mes"){
+        const inicioMes = inicioDeMes();
+        lista = clicksProductos.filter(c => c.fecha && c.fecha >= inicioMes);
+      }else if(periodo === "semana"){
+        const inicioSemana = inicioDeSemana();
+        lista = clicksProductos.filter(c => c.fecha && c.fecha >= inicioSemana);
+      }
+      const mapa = new Map();
+      lista.forEach(c => {
+        const key = String(c.productoId);
+        if(!mapa.has(key)) mapa.set(key, { id: key, titulo: c.titulo, cantidad: 0 });
+        mapa.get(key).cantidad++;
+      });
+      return Array.from(mapa.values()).sort((a, b) => b.cantidad - a.cantidad);
     }
 
     function nombreProducto(id){
@@ -270,29 +315,50 @@
             <span class="num">${fmtMoney(montoVerificado)}</span>
             <span class="label">Monto verificado</span>
           </div>
-          <div class="card">
-            <span class="num">${sumaDiaria(visitasDiarias)}</span>
-            <span class="label">Visitas a la web</span>
-          </div>
-          <div class="card">
-            <span class="num">${sumaDiaria(leadsDiarios)}</span>
-            <span class="label">Leads (inicios de sesión / registros)</span>
-          </div>
         </div>
 
-        <h2 class="section-title">Clicks por producto (total histórico)</h2>
-        ${clicksProductos.length === 0
-          ? '<p class="empty">Todavía no hay clicks registrados.</p>'
-          : `<table>
+        <h2 class="section-title">Visitas a la web</h2>
+        ${(() => {
+          const v = contarPeriodos(visitas);
+          return `<div class="cards">
+            <div class="card"><span class="num">${v.total}</span><span class="label">Total</span></div>
+            <div class="card"><span class="num">${v.mes}</span><span class="label">Este mes</span></div>
+            <div class="card"><span class="num">${v.semana}</span><span class="label">Esta semana</span></div>
+          </div>`;
+        })()}
+
+        <h2 class="section-title">Leads (inicios de sesión / registros)</h2>
+        ${(() => {
+          const l = contarPeriodos(leads);
+          return `<div class="cards">
+            <div class="card"><span class="num">${l.total}</span><span class="label">Total</span></div>
+            <div class="card"><span class="num">${l.mes}</span><span class="label">Este mes</span></div>
+            <div class="card"><span class="num">${l.semana}</span><span class="label">Esta semana</span></div>
+          </div>`;
+        })()}
+
+        <h2 class="section-title">Clicks por producto</h2>
+        <div class="filters">
+          <button data-cf="total" class="${clicksPeriodo==='total'?'active':''}">Total</button>
+          <button data-cf="mes" class="${clicksPeriodo==='mes'?'active':''}">Este mes</button>
+          <button data-cf="semana" class="${clicksPeriodo==='semana'?'active':''}">Esta semana</button>
+        </div>
+        ${(() => {
+          const ranking = clicksPorProductoAgrupados(clicksPeriodo);
+          if(ranking.length === 0) return '<p class="empty">Todavía no hay clicks registrados en este período.</p>';
+          return `<table>
               <thead><tr><th>Producto</th><th>Clicks / vistas de ficha</th></tr></thead>
-              <tbody>${clicksProductos
-                .slice()
-                .sort((a, b) => (b.cantidad || 0) - (a.cantidad || 0))
+              <tbody>${ranking
                 .slice(0, 20)
                 .map(c => `<tr><td>${nombreProducto(c.id)}</td><td>${c.cantidad || 0}</td></tr>`)
                 .join("")}</tbody>
-            </table>`
-        }
+            </table>`;
+        })()}
+
+        <div class="borrar-zone" style="margin-top:18px;">
+          <button class="btn-borrar-sel" id="borrarEstadisticas">🗑️ Borrar todo el historial de estadísticas</button>
+          <span class="contador">Borra visitas, leads y clicks por producto. No afecta a los pedidos.</span>
+        </div>
 
         <h2 class="section-title">Últimos pedidos</h2>
         ${list.length === 0
@@ -378,6 +444,11 @@
       document.querySelectorAll(".chk-borrar").forEach(c => {
         c.addEventListener("change", actualizarContadorSeleccionados);
       });
+
+      const btnBorrarEstadisticas = $("#borrarEstadisticas");
+      if(btnBorrarEstadisticas){
+        btnBorrarEstadisticas.addEventListener("click", borrarEstadisticas);
+      }
     }
 
     // Marca el pedido como efectivamente pagado: lo actualiza en
@@ -485,33 +556,93 @@
     function $$filterButtons(){
       document.querySelectorAll(".filters button").forEach(btn => {
         btn.addEventListener("click", () => {
-          currentFilter = btn.dataset.f;
+          if(btn.dataset.f !== undefined) currentFilter = btn.dataset.f;
+          if(btn.dataset.cf !== undefined) clicksPeriodo = btn.dataset.cf;
           render();
         });
       });
     }
 
-    // Carga visitasDiarias, leadsDiarios y clicksProductos. Son
-    // estadísticas nuevas y no bloqueantes: si alguna falla (por ejemplo,
-    // por reglas de Firestore que todavía no las contemplan), se loguea
-    // el error pero no se rompe el resto del panel.
+    // Borra TODO el historial de estadísticas propias (visitas, leads y
+    // clicks por producto) de Firestore, de forma permanente. No toca la
+    // colección de pedidos ni ningún otro dato. Pide confirmación antes
+    // de borrar, porque no se puede deshacer.
+    async function borrarEstadisticas(){
+      const totalRegistros = visitas.length + leads.length + clicksProductos.length;
+      if(totalRegistros === 0){
+        alert("No hay nada para borrar todavía.");
+        return;
+      }
+      const confirmado = confirm(
+        `Vas a borrar ${totalRegistros} registro(s) de estadísticas (visitas, leads y clicks por producto) de forma permanente. Esto no se puede deshacer y no afecta a los pedidos. ¿Confirmás?`
+      );
+      if(!confirmado) return;
+
+      const { db, doc, deleteDoc } = window.firebaseDb;
+      const btn = $("#borrarEstadisticas");
+      if(btn){ btn.disabled = true; btn.textContent = "Borrando..."; }
+
+      const todos = [
+        ...visitas.map(v => ({ col: "visitas", id: v.id })),
+        ...leads.map(l => ({ col: "leads", id: l.id })),
+        ...clicksProductos.map(c => ({ col: "clicksProductos", id: c.id }))
+      ];
+
+      let borrados = 0;
+      for(const item of todos){
+        try{
+          await deleteDoc(doc(db, item.col, item.id));
+          borrados++;
+        }catch(err){
+          console.error(`No se pudo borrar ${item.col}/${item.id}:`, err);
+        }
+      }
+
+      visitas = [];
+      leads = [];
+      clicksProductos = [];
+
+      alert(`Listo, se borraron ${borrados} de ${todos.length} registro(s) de estadísticas.`);
+      render();
+    }
+
+    // Carga visitas, leads y clicksProductos: ahora cada colección tiene
+    // un documento POR EVENTO (una visita, un lead, un click), con su
+    // fecha y hora exacta, en vez de un contador acumulado. Son
+    // estadísticas no bloqueantes: si alguna falla (por ejemplo, por
+    // reglas de Firestore que todavía no las contemplan), se loguea el
+    // error pero no se rompe el resto del panel.
     async function cargarEstadisticasPropias(){
       const { db, collection, getDocs } = window.firebaseDb;
       try{
-        const snap = await getDocs(collection(db, "visitasDiarias"));
-        visitasDiarias = snap.docs.map(d => ({ fecha: d.id, cantidad: (d.data().cantidad || 0) }));
+        const snap = await getDocs(collection(db, "visitas"));
+        visitas = snap.docs.map(d => {
+          const data = d.data();
+          return { id: d.id, fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : null };
+        });
       }catch(err){
         console.error("No se pudieron cargar las visitas:", err);
       }
       try{
-        const snap = await getDocs(collection(db, "leadsDiarios"));
-        leadsDiarios = snap.docs.map(d => ({ fecha: d.id, cantidad: (d.data().cantidad || 0) }));
+        const snap = await getDocs(collection(db, "leads"));
+        leads = snap.docs.map(d => {
+          const data = d.data();
+          return { id: d.id, fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : null, tipo: data.tipo || "" };
+        });
       }catch(err){
         console.error("No se pudieron cargar los leads:", err);
       }
       try{
         const snap = await getDocs(collection(db, "clicksProductos"));
-        clicksProductos = snap.docs.map(d => ({ id: d.id, titulo: d.data().titulo || "", cantidad: (d.data().cantidad || 0) }));
+        clicksProductos = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : null,
+            productoId: data.productoId,
+            titulo: data.titulo || ""
+          };
+        });
       }catch(err){
         console.error("No se pudieron cargar los clicks por producto:", err);
       }

@@ -14,7 +14,8 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  getAdditionalUserInfo
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {
   getFirestore,
@@ -83,7 +84,29 @@ window.firebaseAuth = {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  getAdditionalUserInfo
+};
+
+// URL del Web App de Apps Script (la misma que usan estadisticas.html y
+// metodos-pago.html) — se usa acá para disparar el mail de bienvenida
+// apenas alguien crea una cuenta, sin importar si después agrega algo
+// al carrito o no.
+const MAILING_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbybetKUyKoElKwN99mgQwWfheYfdBPnnzOyQtf5xMgKVyveGgcJtQGCJkhzS8MLVqSC/exec";
+
+// Manda el aviso al Web App de Apps Script para que mande el mail de
+// bienvenida. Se llama una sola vez, justo después de que se crea una
+// cuenta nueva (registro con mail, o primer ingreso con Google).
+// mode: "no-cors" porque no necesitamos leer la respuesta, solo que el
+// aviso llegue (ver la misma explicación en estadisticas.html).
+window.enviarMailBienvenida = function(email, nombre){
+  if(!email || !MAILING_WEBAPP_URL) return;
+  fetch(MAILING_WEBAPP_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ tipo: "bienvenida", clienteEmail: email, clienteNombre: nombre || "" })
+  }).catch(err => console.error("No se pudo mandar el aviso de bienvenida:", err));
 };
 
 // Firestore: se usa para guardar un registro de cada pedido apenas la
@@ -200,26 +223,21 @@ function mostrarCartelPagoConfirmado(){
 
 // ---------------------------------------------------------------------
 // Estadísticas propias (Firestore), además de lo que ya mide Google
-// Analytics. Se guardan agrupadas por día para poder filtrarlas en
-// estadisticas.html igual que los pedidos ("Últimos 7/30 días").
+// Analytics. Cada visita, lead y click de producto se guarda como un
+// documento individual con su fecha y hora exacta (serverTimestamp),
+// para poder agruparlos por semana, por mes, o ver el total — y para
+// poder borrarlos cuando se quiera desde estadisticas.html.
 // ---------------------------------------------------------------------
-
-// Fecha de hoy en formato YYYY-MM-DD, en horario de Argentina (así los
-// días coinciden con cuando Anto revisa el panel, sin importar en qué
-// zona horaria esté el navegador de la clienta).
-function fechaHoyAR_(){
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
-}
 
 // Cuenta una visita a la web. Se llama una sola vez por pestaña/sesión
 // (usamos sessionStorage para no inflar el número cada vez que la misma
-// persona navega entre páginas o recarga) y queda agrupada por día.
+// persona navega entre páginas o recarga).
 function registrarVisita(){
   try{
     if(sessionStorage.getItem("bbaVisitaContada")) return;
     sessionStorage.setItem("bbaVisitaContada", "1");
   }catch(e){ /* sin sessionStorage disponible: seguimos igual, sin el límite */ }
-  setDoc(doc(db, "visitasDiarias", fechaHoyAR_()), { cantidad: increment(1) }, { merge: true })
+  addDoc(collection(db, "visitas"), { fecha: serverTimestamp() })
     .catch(err => console.error("No se pudo registrar la visita:", err));
 }
 window.registrarVisita = registrarVisita;
@@ -229,20 +247,22 @@ window.registrarVisita = registrarVisita;
 // así queda también en nuestras propias estadísticas y no solo en Google
 // Analytics.
 function registrarLead(tipo){
-  setDoc(doc(db, "leadsDiarios", fechaHoyAR_()), { cantidad: increment(1) }, { merge: true })
+  addDoc(collection(db, "leads"), { fecha: serverTimestamp(), tipo: tipo || "" })
     .catch(err => console.error("No se pudo registrar el lead:", err));
 }
 window.registrarLead = registrarLead;
 
 // Cuenta una vista de la ficha de un producto (producto.html), para
-// poder ver cuáles son los que más interés generan. Se guarda un
-// documento por producto con el total acumulado.
+// poder ver cuáles son los que más interés generan. Cada vista queda
+// guardada por separado con su fecha, así se puede ver el ranking de
+// productos por semana, por mes, o en total.
 function registrarClickProducto(id, titulo){
   if(id === undefined || id === null) return;
-  setDoc(doc(db, "clicksProductos", String(id)), {
-    cantidad: increment(1),
+  addDoc(collection(db, "clicksProductos"), {
+    fecha: serverTimestamp(),
+    productoId: String(id),
     titulo: titulo || ""
-  }, { merge: true }).catch(err => console.error("No se pudo registrar el click del producto:", err));
+  }).catch(err => console.error("No se pudo registrar el click del producto:", err));
 }
 window.registrarClickProducto = registrarClickProducto;
 
